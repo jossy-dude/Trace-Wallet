@@ -5,8 +5,11 @@ import hashlib
 import csv
 import xml.etree.ElementTree as ET
 from datetime import datetime, timedelta
+from pathlib import Path
+import re
 
 DATA_FILE = "vault_data.json"
+SETTINGS_FILE = "settings.json"
 
 DEFAULT_DATA = {
     "password_hash": None,
@@ -23,7 +26,8 @@ DEFAULT_DATA = {
     "goals": [
         {"name": "New Car", "target": 25000, "current": 12400},
         {"name": "Japan Trip", "target": 12000, "current": 4200}
-    ]
+    ],
+    "critical_alerts": []
 }
 
 class VaultPro:
@@ -86,6 +90,148 @@ class VaultPro:
             return True
         return False
 
+    def _detect_critical_alerts(self):
+        """Scan ledger for anomalies and generate critical alerts."""
+        alerts = []
+        transactions = self.data.get("transactions", [])
+        
+        # Check for duplicate transactions (same amount, same day, same description)
+        seen = {}
+        for tx in transactions:
+            key = f"{tx.get('date', '')[:10]}_{tx.get('amount', 0)}_{tx.get('description', '').lower()}"
+            if key in seen:
+                alerts.append({
+                    "type": "DUPLICATE",
+                    "severity": "HIGH",
+                    "message": f"Possible duplicate: {tx.get('description')} on {tx.get('date', '')[:10]}",
+                    "timestamp": datetime.now().isoformat()
+                })
+            else:
+                seen[key] = True
+        
+        # Check for sudden fee spikes
+        fees = [tx for tx in transactions if "fee" in tx.get("description", "").lower()]
+        if len(fees) >= 2:
+            recent_fees = sorted(fees, key=lambda x: x.get("date", ""), reverse=True)[:5]
+            if len(recent_fees) >= 2:
+                avg_fee = sum(f["amount"] for f in recent_fees) / len(recent_fees)
+                for f in recent_fees:
+                    if f["amount"] > avg_fee * 2 and f["amount"] > 100:
+                        alerts.append({
+                            "type": "FEE_SPIKE",
+                            "severity": "MEDIUM",
+                            "message": f"Unusual fee detected: ${f['amount']} for {f.get('description')}",
+                            "timestamp": datetime.now().isoformat()
+                        })
+        
+        # Check for large transactions (>10% of net worth)
+        nw = self.data.get("net_worth", 1)
+        for tx in transactions[:50]:  # Check recent 50
+            if tx["type"] == "Expense" and tx["amount"] > nw * 0.1 and tx["amount"] > 1000:
+                alerts.append({
+                    "type": "LARGE_EXPENSE",
+                    "severity": "HIGH",
+                    "message": f"Large expense alert: ${tx['amount']} ({tx.get('description')})",
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        # Check for negative balance projection
+        if self.data.get("monthly_burn", 0) > self.data.get("monthly_income", 0):
+            months_to_zero = self.data.get("net_worth", 0) / max(self.data.get("monthly_burn", 1) - self.data.get("monthly_income", 0), 1)
+            if months_to_zero < 6:
+                alerts.append({
+                    "type": "BURN_WARNING",
+                    "severity": "CRITICAL",
+                    "message": f"At current burn rate, funds may last only {int(months_to_zero)} months",
+                    "timestamp": datetime.now().isoformat()
+                })
+        
+        self.data["critical_alerts"] = alerts
+        return alerts
+
+    def parse_ethiopian_bank_xml(self, file_path):
+        """Parse Ethiopian bank XML formats (CBE, BOA, Dashen, Telebirr)."""
+        transactions = []
+        try:
+            tree = ET.parse(file_path)
+            root = tree.getroot()
+            
+            # CBE format detection
+            cbe_txns = root.findall('.//Transaction') or root.findall('.//transaction')
+            if not cbe_txns:
+                cbe_txns = root.findall('.//Record') or root.findall('.//record')
+            
+            for node in cbe_txns:
+                try:
+                    # Extract fields with multiple possible tag names
+                    date_elem = node.find('Date') or node.find('date') or node.find('TransactionDate') or node.find('ValueDate')
+                    desc_elem = node.find('Description') or node.find('description') or node.find('Narrative') or node.find('Particulars')
+                    amount_elem = node.find('Amount') or node.find('amount') or node.find('Debit') or node.find('Credit')
+                    balance_elem = node.find('Balance') or node.find('balance') or node.find('RunningBalance')
+                    
+                    date_str = date_elem.text if date_elem is not None else datetime.now().isoformat()
+                    desc = desc_elem.text if desc_elem is not None else "Bank Transaction"
+                    
+                    # Handle amount - could be separate debit/credit
+                    if amount_elem is not None:
+                        amount = float(amount_elem.text or 0)
+                    else:
+                        debit = node.find('Debit')
+                        credit = node.find('Credit')
+                        if debit is not None and debit.text:
+                            amount = -float(debit.text)
+                        elif credit is not None and credit.text:
+                            amount = float(credit.text)
+                        else:
+                            amount = 0
+                    
+                    balance = float(balance_elem.text) if balance_elem is not None and balance_elem.text else None
+                    
+                    # Detect bank from file path or content
+                    bank = "Unknown"
+                    if "cbe" in file_path.lower(): bank = "CBE"
+                    elif "boa" in file_path.lower(): bank = "BOA"
+                    elif "dashen" in file_path.lower(): bank = "Dashen"
+                    elif "telebirr" in file_path.lower(): bank = "Telebirr"
+                    
+                    # Categorize based on description patterns
+                    category = "Uncategorized"
+                    desc_lower = desc.lower() if desc else ""
+                    if any(w in desc_lower for w in ["transfer", "xfer"]): category = "Transfer"
+                    elif any(w in desc_lower for w in ["withdraw", "atm", "cash"]): category = "Cash Withdrawal"
+                    elif any(w in desc_lower for w in ["deposit", "salary", "payroll"]): category = "Income"
+                    elif any(w in desc_lower for w in ["fee", "charge", "commission"]): category = "Bank Fees"
+                    elif any(w in desc_lower for w in ["pos", "purchase", "payment", "merchant"]): category = "Purchase"
+                    elif any(w in desc_lower for w in ["mobile", "telebirr", "airtime"]): category = "Mobile Payment"
+                    
+                    tx = {
+                        "id": len(self.data.get("transactions", [])) + 1,
+                        "date": date_str,
+                        "description": f"[{bank}] {desc}",
+                        "amount": abs(amount),
+                        "type": "Income" if amount > 0 else "Expense",
+                        "category": category,
+                        "bank": bank,
+                        "balance": balance,
+                        "is_anomaly": False,
+                        "raw_description": desc
+                    }
+                    tx["is_anomaly"] = self._calculate_anomaly(tx)
+                    transactions.append(tx)
+                except Exception as e:
+                    self._log_audit("XML Parse Error", "LOW", f"Failed to parse transaction node: {str(e)}")
+                    continue
+            
+            self._log_audit("Ethiopian Bank Import", "HIGH", f"Parsed {len(transactions)} transactions from {os.path.basename(file_path)}")
+        except ET.ParseError as e:
+            self._log_audit("XML Parse Failure", "CRITICAL", f"Invalid XML: {str(e)}")
+            raise
+        except Exception as e:
+            self._log_audit("Import Error", "CRITICAL", str(e))
+            raise
+        
+        return transactions
+
     def sync_data(self):
         self.load_data()
         nw = self.data.get("net_worth", 0)
@@ -106,9 +252,15 @@ class VaultPro:
             pnw += (inc - burn)
             preds.append({"month": (datetime.now() + timedelta(days=30*i)).strftime("%b %Y"), "projected_net_worth": round(pnw, 2)})
         self.data["predictions"] = preds
+        # Run anomaly detection and generate critical alerts
+        self._detect_critical_alerts()
         self._log_audit("Vault Sync", "HIGH", "Full data refresh completed")
         self.save_data()
         return self.data
+
+    def get_critical_alerts(self):
+        """Return current critical alerts."""
+        return self.data.get("critical_alerts", [])
 
     def update_setting(self, data):
         key = data.get("key")
@@ -169,23 +321,45 @@ class VaultPro:
                             tx["is_anomaly"] = self._calculate_anomaly(tx)
                             self.data["transactions"].insert(0, tx); cnt += 1
                 elif fp.endswith('.xml'):
+                    # Try Ethiopian bank parser first
                     try:
+                        imported = self.parse_ethiopian_bank_xml(fp)
+                        for tx in imported:
+                            self.data["transactions"].insert(0, tx)
+                            cnt += 1
+                    except ET.ParseError:
+                        # Fall back to generic XML parsing
                         tree = ET.parse(fp)
-                    except ET.ParseError as e:
-                        self._log_audit("XML Parse Failure", "LOW", str(e))
-                        return {"status": "degraded", "message": str(e), "file": fp}
-                    for n in tree.getroot().findall('.//Transaction'):
-                        an = n.find('Amount')
-                        a = float(an.text) if an is not None else 0
-                        tx = {"id": len(self.data["transactions"])+1, "date": datetime.now().isoformat(), "description":"XML Import", "amount":abs(a), "type":"Income" if a>0 else "Expense", "category":"Imported","is_anomaly":False}
-                        self.data["transactions"].insert(0, tx); cnt += 1
+                        for n in tree.getroot().findall('.//Transaction'):
+                            an = n.find('Amount')
+                            a = float(an.text) if an is not None else 0
+                            tx = {"id": len(self.data["transactions"])+1, "date": datetime.now().isoformat(), "description":"XML Import", "amount":abs(a), "type":"Income" if a>0 else "Expense", "category":"Imported","is_anomaly":False}
+                            self.data["transactions"].insert(0, tx); cnt += 1
                 self._log_audit("Batch Import", "HIGH", f"{cnt} records imported from {os.path.basename(fp)}")
                 self.save_data()
+                self._detect_critical_alerts()
                 return {"status": "success", "message": f"{cnt} records imported"}
             except Exception as e:
                 self._log_audit("Parser Failure", "FAIL", str(e))
                 return {"status": "degraded", "message": str(e), "file": fp}
         return {"status": "cancelled", "message": "Import cancelled"}
+
+    def export_csv(self):
+        """Export transactions to CSV."""
+        if not self.window: return {"status": "error", "message": "No window"}
+        result = self.window.create_file_dialog(webview.SAVE_DIALOG, save_filename='vault_transactions.csv')
+        if result:
+            try:
+                with open(result[0], 'w', newline='', encoding='utf-8') as f:
+                    writer = csv.writer(f)
+                    writer.writerow(['ID', 'Date', 'Description', 'Amount', 'Type', 'Category', 'Is Anomaly'])
+                    for tx in self.data.get("transactions", []):
+                        writer.writerow([tx.get('id',''), tx.get('date',''), tx.get('description',''), tx.get('amount',''), tx.get('type',''), tx.get('category',''), tx.get('is_anomaly', False)])
+                self._log_audit("CSV Export", "HIGH", f"Exported to {result[0]}")
+                return {"status": "success", "message": "Exported to " + result[0]}
+            except Exception as e:
+                return {"status": "error", "message": str(e)}
+        return {"status": "cancelled", "message": "Export cancelled"}
 
     def check_password(self, pwd):
         if not self.data.get("has_setup_password"): return True
@@ -342,6 +516,7 @@ tailwind.config = {
         </nav>
         <div class="pt-4 border-t border-slate-200 dark:border-white/10 space-y-2">
             <button onclick="exportData()" class="w-full flex items-center gap-3 px-4 py-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold text-sm transition-all"><span class="material-symbols-outlined text-[18px]">download</span> Export JSON</button>
+            <button onclick="exportCSV()" class="w-full flex items-center gap-3 px-4 py-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold text-sm transition-all"><span class="material-symbols-outlined text-[18px]">table_view</span> Export CSV</button>
             <button onclick="importLedger()" class="w-full flex items-center gap-3 px-4 py-2.5 text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl font-semibold text-sm transition-all"><span class="material-symbols-outlined text-[18px]">upload_file</span> Import Ledger</button>
             <button onclick="lockVault()" class="w-full mt-3 bg-primary text-white py-3 rounded-xl font-headline font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-primary/20 hover:brightness-110 transition-all"><span class="material-symbols-outlined text-[16px]">lock</span> Lock Vault</button>
         </div>
@@ -419,6 +594,16 @@ tailwind.config = {
             <div class="flex justify-between items-end">
                 <h2 class="font-headline font-bold text-xl text-primary dark:text-blue-100">Pending Execution</h2>
                 <span class="bg-error-container dark:bg-red-900/30 text-on-error-container dark:text-red-300 px-2 py-0.5 rounded text-[10px] font-bold uppercase" id="cmd-tx-count">0 SETTLED</span>
+            </div>
+            <!-- Critical Alerts Section -->
+            <div id="critical-alerts-box" class="mb-4 hidden">
+                <div class="bg-error/10 dark:bg-red-900/20 border border-error/30 rounded-2xl p-4">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span class="material-symbols-outlined text-error">warning</span>
+                        <span class="font-bold text-error text-sm">CRITICAL ALERTS</span>
+                    </div>
+                    <div id="critical-alerts-list" class="space-y-2"></div>
+                </div>
             </div>
             <div id="cmd-recent-list" class="flex flex-col gap-3">
                 <div class="p-6 text-center text-on-surface-variant text-sm border border-dashed rounded-xl border-outline-variant/30">Loading...</div>
@@ -803,6 +988,8 @@ function renderCommand(d) {
     // AI insight
     const sr = d.savings_rate || 0;
     document.getElementById('cmd-ai-insight').innerText = sr > 20 ? 'Strong savings at ' + sr + '%. On track to exceed monthly targets.' : 'Savings below optimal. Consider reducing discretionary spend.';
+    // Critical Alerts
+    renderCriticalAlerts(d.critical_alerts || []);
     // Recent list
     const txs = d.transactions || [];
     document.getElementById('cmd-tx-count').innerText = txs.length + ' SETTLED';
@@ -814,6 +1001,21 @@ function renderCommand(d) {
         list.innerHTML += '<div class="bg-surface-container dark:bg-slate-800 rounded-2xl p-5 flex justify-between items-start' + anom + '"><div><p class="font-bold text-sm">' + tx.description + '</p><p class="text-xs text-on-surface-variant mt-1">' + tx.category + (tx.is_anomaly ? ' <span class=\'text-error font-bold\'>⚠ ANOMALY</span>' : '') + '</p></div><p class="font-headline font-extrabold ' + (isI ? 'text-on-tertiary-container' : 'text-error') + ' priv">' + (isI?'+':'-') + fmt(tx.amount) + '</p></div>';
     });
     if (txs.length === 0) list.innerHTML = '<div class="p-6 text-center text-on-surface-variant text-sm border border-dashed rounded-xl">No transactions yet</div>';
+}
+
+function renderCriticalAlerts(alerts) {
+    const box = document.getElementById('critical-alerts-box');
+    const list = document.getElementById('critical-alerts-list');
+    if (!alerts || alerts.length === 0) {
+        box.classList.add('hidden');
+        return;
+    }
+    box.classList.remove('hidden');
+    list.innerHTML = '';
+    alerts.slice(0, 5).forEach(a => {
+        const sevColor = a.severity === 'CRITICAL' ? 'text-error' : a.severity === 'HIGH' ? 'text-orange-600' : 'text-yellow-600';
+        list.innerHTML += '<div class="flex items-start gap-2 p-2 bg-white/50 dark:bg-slate-800/50 rounded-lg"><span class="material-symbols-outlined text-sm ' + sevColor + '">warning</span><div><p class="text-xs font-bold ' + sevColor + '">' + a.type + '</p><p class="text-[11px] text-on-surface-variant">' + a.message + '</p></div></div>';
+    });
 }
 
 // ===== LEDGER =====
@@ -967,6 +1169,8 @@ function promptNewPassword() { let p = prompt("New Master Password (min 4):"); i
 function addGoal() { let n = prompt("Goal Name:","New Goal"); if (n) { let t = prompt("Target Amount:","1000"); pywebview.api.add_goal({name:n,target:t,current:0}).then(() => syncData()); } }
 
 function exportData() { pywebview.api.export_data().then(r => showToast(r.message || 'Done', 'download')); }
+
+function exportCSV() { pywebview.api.export_csv().then(r => showToast(r.message || 'CSV Exported', 'download')); }
 
 function importLedger() {
     pywebview.api.parse_ledger_file().then(r => {
