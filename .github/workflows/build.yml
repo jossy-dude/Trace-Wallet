@@ -1,0 +1,63 @@
+name: Build Apps
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+    runs-on: windows-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+    
+    - name: Install dependencies
+      run: |
+        cd vault_analytics
+        pip install pywebview fastapi uvicorn pyinstaller
+    
+    - name: Build Windows executable
+      run: |
+        cd vault_analytics
+        pyinstaller --name=VaultAnalytics --onefile --windowed --add-data="index.html;." --add-data="vault;vault" main.py
+    
+    - name: Upload Windows artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VaultAnalytics-Windows
+        path: vault_analytics/dist/VaultAnalytics.exe
+
+  build-android:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.24.0'
+        channel: 'stable'
+    
+    - name: Get dependencies
+      run: flutter pub get
+    
+    - name: Build APK
+      run: flutter build apk --release
+    
+    - name: Build App Bundle
+      run: flutter build appbundle --release
+    
+    - name: Upload Android artifacts
+      uses: actions/upload-artifact@v4
+      with:
+        name: TraceWallet-Android
+        path: |
+          build/app/outputs/flutter-apk/app-release.apk
+          build/app/outputs/bundle/release/app-release.aab
