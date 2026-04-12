@@ -10,30 +10,30 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 if __name__ == '__main__':
     # Initialize Core Application Logic
     api = VaultPro()
-    
-    # Extract config port safely
+
+    # Extract config port and HTTPS setting safely
     port = getattr(api, 'settings', {}).get('sms_port', 8765)
-    
-    # Start SMS Fast API listener in background thread
-    server = create_sms_server(api)
-    def run_server():
-        import uvicorn
-        uvicorn.run(server, host="0.0.0.0", port=port, log_level="error")
-        
-    threading.Thread(target=run_server, daemon=True).start()
-    logging.info(f"SMS Sync Listener active on port {port}")
-    
+    use_https = getattr(api, 'settings', {}).get('sms_use_https', False)
+
+    # Start SMS FastAPI listener in background thread
+    # create_sms_server handles its own thread internally
+    server_thread = create_sms_server(api, port=port, use_https=use_https)
+    if server_thread:
+        logging.info(f"SMS P2P Server active on port {port} ({'HTTPS' if use_https else 'HTTP'})")
+    else:
+        logging.warning("SMS P2P Server could not be started (FastAPI/uvicorn may not be installed)")
+
     # Boot the UI
     window = webview.create_window(
-        title='Vault Analytics v4.0', 
+        title='Vault Analytics v4.0',
         url='index.html',
         js_api=api,
-        width=1400, 
+        width=1400,
         height=900,
         frameless=True,
         transparent=True,
         easy_drag=False
     )
-    
+
     api.set_window(window)
     webview.start()
