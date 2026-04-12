@@ -73,7 +73,7 @@ class VaultPro:
                 ]
                 if self.settings.get("accounts") == demo_accounts:
                     self.settings["accounts"] = []
-            except:
+            except Exception:
                 self.settings = dict(DEFAULT_SETTINGS)
         else:
             self.settings = dict(DEFAULT_SETTINGS)

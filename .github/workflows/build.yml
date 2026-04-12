@@ -29,7 +29,7 @@ jobs:
     - name: Build Windows executable
       run: |
         cd vault_analytics
-        pyinstaller --name=VaultAnalytics --onefile --windowed --add-data="index.html;." --add-data="vault;vault" main.py
+        pyinstaller --name=VaultAnalytics --onefile --windowed --add-data="index.html;." --add-data="vault;vault" --hidden-import=requests --hidden-import=urllib3 --hidden-import=charset_normalizer --hidden-import=idna --hidden-import=certifi --hidden-import=packaging --hidden-import=packaging.version --hidden-import=packaging.specifiers --hidden-import=packaging.requirements main.py
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
