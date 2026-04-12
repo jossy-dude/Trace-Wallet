@@ -12,8 +12,8 @@ class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.blur = 16.0,
-    this.borderRadius = 24.0,
+    this.blur = 24.0,
+    this.borderRadius = 28.0,
     this.padding,
     this.gradientColors,
   });

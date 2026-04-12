@@ -39,9 +39,24 @@ class SemanticBankRules {
     ],
   };
 
+  static const Map<String, dynamic> boa = {
+    'display': 'BOA',
+    'amt_logic': [
+      r'debited with etb\s*([\d,.]+)',
+      r'credited with etb\s*([\d,.]+)',
+      r'etb\s*([\d,.]+)', 
+      r'birr\s*([\d,.]+)'
+    ],
+    'bal_logic': [r'balance.*?etb\s*([\d,.]+)', r'bal\s*([\d,.]+)'],
+    'fee_logic': [r'fee.*?etb\s*([\d,.]+)', r's\.charge\s*([\d,.]+)'],
+    'vat_logic': [r'vat.*?etb\s*([\d,.]+)'],
+    'name_logic': [r'(?:to|from)\s+([a-zA-Z\s.\-]+?)(?:\s+on|,|\s+at)'],
+  };
+
   static final Map<String, DateTime> startDates = {
     'CBE': DateTime(2024, 12, 10),
     'TELEBIRR': DateTime(2024, 4, 11),
+    'BOA': DateTime(2025, 10, 13),
     'DEFAULT': DateTime(2024, 1, 1),
   };
 }
@@ -88,6 +103,8 @@ class RegexParserService {
       return SemanticBankRules.cbe;
     } else if (lowerBody.contains('telebirr') || lowerBody.contains('127') || lowerBody.contains('ethiotel') || lowerSender.contains('127') || lowerSender.contains('telebirr')) {
       return SemanticBankRules.telebirr;
+    } else if (lowerBody.contains('boa') || lowerBody.contains('abyssinia') || lowerSender.contains('boa')) {
+      return SemanticBankRules.boa;
     }
     return null;
   }

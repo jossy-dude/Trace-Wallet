@@ -71,7 +71,13 @@ DEFAULT_SETTINGS = {
         }
     },
     "accounts": [],
-    "category_icons": {}
+    "category_icons": {},
+    "device_id": hashlib.sha256(os.urandom(32)).hexdigest()[:16].upper(),
+    "device_name": os.environ.get("COMPUTERNAME", "Vault-Desktop"),
+    "paired_devices": [],
+    "sync_folders": ["transactions", "goals", "audit_log"],
+    "p2p_enabled": True,
+    "p2p_relay_enabled": True
 }
 
 DEFAULT_DATA = {
@@ -163,11 +169,16 @@ BANK_RULES = {
         "display": "BOA",
         "full_name": "Bank of Abyssinia",
         "patterns": {
-            "amount": [r'etb\s*([\d,.]+)', r'birr\s*([\d,.]+)'],
-            "balance": [r'balance.*?etb\s*([\d,.]+)'],
-            "fee": [r'fee.*?etb\s*([\d,.]+)'],
+            "amount": [
+                r'debited with etb\s*([\d,.]+)',
+                r'credited with etb\s*([\d,.]+)',
+                r'etb\s*([\d,.]+)', 
+                r'birr\s*([\d,.]+)'
+            ],
+            "balance": [r'balance.*?etb\s*([\d,.]+)', r'bal\s*([\d,.]+)'],
+            "fee": [r'fee.*?etb\s*([\d,.]+)', r's\.charge\s*([\d,.]+)'],
             "vat": [r'vat.*?etb\s*([\d,.]+)'],
-            "merchant": [r'(?:to|from)\s+([a-zA-Z\s.\-]+?)(?:\s+on|,)'],
+            "merchant": [r'(?:to|from)\s+([a-zA-Z\s.\-]+?)(?:\s+on|,|\s+at)'],
             "date": [r'on\s+(\d{1,2}[/-]\d{1,2}[/-]\d{2,4})']
         }
     },

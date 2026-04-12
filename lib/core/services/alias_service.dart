@@ -33,7 +33,7 @@ class AliasService {
       // No match found - keep the raw name as alias
       tx.senderAlias = rawName;
       // Only flag for review if it wasn't already successfully categorized by the Bank Parser
-      bool isBankTx = tx.category == 'CBE' || tx.category == 'Telebirr';
+      bool isBankTx = tx.category == 'CBE' || tx.category == 'Telebirr' || tx.category == 'BOA';
       if (!isBankTx) {
         tx.category = 'Requires Review';
       }

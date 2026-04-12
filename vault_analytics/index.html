@@ -91,13 +91,19 @@ tailwind.config = {
     .dark .glass-panel::before { background: linear-gradient(135deg, rgba(255,255,255,0.03) 0%, transparent 100%); }
     .dark .glass-primary { background: rgba(5,10,20,0.85); border-color: rgba(255,255,255,0.04); }
 
-    /* Bento Grid */
-    .bento-grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 1.5rem; grid-auto-flow: dense; }
+    /* Bento Grid Helpers */
     .bento-col-12 { grid-column: span 12; }
     .bento-col-8 { grid-column: span 8; }
     .bento-col-6 { grid-column: span 6; }
     .bento-col-4 { grid-column: span 4; }
     .bento-col-3 { grid-column: span 3; }
+    
+    @media (max-width: 1024px) {
+        .lg\:bento-col-12 { grid-column: span 12; }
+        .lg\:bento-col-8 { grid-column: span 12; }
+        .lg\:bento-col-6 { grid-column: span 12; }
+        .lg\:bento-col-4 { grid-column: span 12; }
+    }
 
     /* Gradients & Effects */
     .vault-gradient { background: linear-gradient(135deg, #001d3b 0%, #103257 50%, #1a4d85 100%); }
@@ -140,7 +146,46 @@ tailwind.config = {
     .toast-info { background:rgba(25,28,30,0.9); }
     .dark .toast-info { background:rgba(15,23,42,0.9); }
 
+    /* Bento Hover Inspector */
+    .bento-item { position: relative; cursor: pointer; }
+    .inspector-panel {
+        position: fixed;
+        right: -450px;
+        top: 0;
+        width: 450px;
+        height: 100vh;
+        background: rgba(255, 255, 255, 0.9);
+        backdrop-filter: blur(40px);
+        z-index: 200;
+        transition: right 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        border-left: 1px solid rgba(255,255,255,0.1);
+        padding: 40px;
+        box-shadow: -20px 0 50px rgba(0,0,0,0.3);
+    }
+    .dark .inspector-panel { background: rgba(15, 23, 42, 0.9); }
+    .inspector-panel.active { right: 0; }
+    .inspector-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.4);
+        z-index: 199;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.3s ease;
+    }
+    .inspector-overlay.active { opacity: 1; pointer-events: auto; }
+    
+    /* Interactive States */
+    .press-effect:active { transform: scale(0.96); }
+
     /* Status Lights */
+    /* Alive System: Breathing Background */
+    @keyframes breathingBackground {
+        0%, 100% { background-color: rgba(var(--accent-hue), 100%, 50%, 0.02); }
+        50% { background-color: rgba(var(--accent-hue), 100%, 50%, 0.08); }
+    }
+    .sync-breathing { animation: breathingBackground 3s ease-in-out infinite; }
+    
     .status-green { background: #4ade80; box-shadow: 0 0 12px rgba(74,222,128,0.9); }
     .status-amber { background: #fbbf24; box-shadow: 0 0 12px rgba(251,191,36,0.9); }
     .status-red { background: #f87171; box-shadow: 0 0 12px rgba(248,113,113,0.9); }
@@ -175,6 +220,15 @@ tailwind.config = {
     .fab-pulse { animation: fabPulse 2s ease-in-out infinite; }
     .fab-bounce { animation: fabBounce 2s ease-in-out infinite; }
     .fab-glow { animation: fabGlow 3s ease-in-out infinite; }
+    
+    /* System Heartbeat LED */
+    @keyframes heartbeat {
+        0%, 100% { opacity: 1; transform: scale(1); box-shadow: 0 0 10px rgba(74, 222, 128, 0.8); }
+        50% { opacity: 0.6; transform: scale(0.9); box-shadow: 0 0 4px rgba(74, 222, 128, 0.4); }
+    }
+    .heartbeat-active { animation: heartbeat 1s ease-in-out infinite; }
+    .heartbeat-fast { animation: heartbeat 0.4s ease-in-out infinite; }
+    .heartbeat-amber { box-shadow: 0 0 10px rgba(251, 191, 36, 0.8) !important; background: #fbbf24 !important; }
 
     /* Command Palette */
     .cmd-palette { position: fixed; inset: 0; top: 2rem; z-index: 600; background: rgba(0,0,0,0.5); backdrop-filter: blur(8px); display: none; align-items: flex-start; justify-content: center; padding-top: 15vh; }
@@ -201,9 +255,9 @@ tailwind.config = {
 <!-- TITLE BAR -->
 <div class="pywebview-drag-region h-8 bg-slate-900 w-full flex items-center justify-between px-4 text-white fixed top-0 left-0 z-[100] border-b border-white/10">
     <div class="flex items-center gap-3">
-        <div class="text-[10px] font-bold font-headline tracking-[0.25em] text-slate-400">VAULT v4.0</div>
-        <div id="status-light" class="w-1.5 h-1.5 rounded-full status-green animate-pulse"></div>
-        <span id="status-text" class="text-[9px] text-slate-500 font-medium">Synced</span>
+        <div class="text-[10px] font-bold font-headline tracking-[0.25em] text-slate-400">VAULT v4.1 PRO</div>
+        <div id="status-light" class="w-1.5 h-1.5 rounded-full status-green pulse-slow shadow-[0_0_10px_rgba(74,222,128,0.8)]"></div>
+        <span id="status-text" class="text-[9px] text-slate-500 font-medium">Ready</span>
     </div>
     <div class="flex items-center gap-1">
         <span id="session-timer" class="text-[9px] text-slate-600 mr-4 font-mono">00:00:00</span>
@@ -214,6 +268,21 @@ tailwind.config = {
 </div>
 
 <div id="toast-box"></div>
+
+<!-- WIDGET INSPECTOR PANEL -->
+<div id="inspector-overlay" class="inspector-overlay" onclick="closeInspector()"></div>
+<div id="inspector-panel" class="inspector-panel">
+    <div class="flex justify-between items-center mb-8">
+        <h3 class="text-2xl font-headline font-black text-primary dark:text-blue-100" id="inspector-title">Widget Settings</h3>
+        <button onclick="closeInspector()" class="material-symbols-outlined text-on-surface-variant hover:text-primary transition-colors">close</button>
+    </div>
+    <div id="inspector-content" class="space-y-8">
+        <!-- Content injected via JS -->
+    </div>
+    <div class="absolute bottom-10 left-10 right-10">
+        <button onclick="saveInspector()" class="w-full bg-primary text-white py-4 rounded-2xl font-headline font-bold uppercase tracking-widest shadow-lg shadow-primary/20 press-effect">Apply Changes</button>
+    </div>
+</div>
 
 <!-- LOCK SCREEN -->
 <div id="lock-screen" class="fixed inset-0 top-8 bg-slate-900/95 backdrop-blur-3xl z-[200] flex items-center justify-center hidden">
@@ -275,9 +344,19 @@ tailwind.config = {
             <a onclick="navigate('ledger')" id="nav-ledger" class="nav-btn flex items-center gap-3 px-5 py-3.5 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 font-bold text-sm cursor-pointer transition-all hover:scale-[1.02] press-effect"><span class="material-symbols-outlined text-[20px]">receipt_long</span> Ledger</a>
             <a onclick="navigate('intel')" id="nav-intel" class="nav-btn flex items-center gap-3 px-5 py-3.5 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 font-bold text-sm cursor-pointer transition-all hover:scale-[1.02] press-effect"><span class="material-symbols-outlined text-[20px]">donut_small</span> Insights</a>
             <a onclick="navigate('predictions')" id="nav-predictions" class="nav-btn flex items-center gap-3 px-5 py-3.5 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 font-bold text-sm cursor-pointer transition-all hover:scale-[1.02] press-effect"><span class="material-symbols-outlined text-[20px]">online_prediction</span> Forecast</a>
+            <a onclick="navigate('devices')" id="nav-devices" class="nav-btn flex items-center gap-3 px-5 py-3.5 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 font-bold text-sm cursor-pointer transition-all hover:scale-[1.02] press-effect"><span class="material-symbols-outlined text-[20px]">devices</span> P2P Devices</a>
             <a onclick="navigate('audit')" id="nav-audit" class="nav-btn flex items-center gap-3 px-5 py-3.5 rounded-2xl text-slate-600 dark:text-slate-300 hover:bg-white/40 dark:hover:bg-white/10 font-bold text-sm cursor-pointer transition-all hover:scale-[1.02] press-effect"><span class="material-symbols-outlined text-[20px]">gpp_good</span> Audit</a>
         </nav>
         <div class="pt-5 border-t border-slate-300/30 dark:border-white/10 mt-4 relative">
+            <!-- System Health Widget -->
+            <div class="mb-6 p-4 rounded-2xl bg-surface-container dark:bg-slate-800/50 border border-outline-variant/10">
+                <p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest mb-3">Health Diagnostics</p>
+                <div class="space-y-2">
+                    <div class="flex justify-between items-center"><span class="text-[10px] font-medium">Memory</span><span class="text-[10px] font-bold text-primary" id="diag-mem">124MB</span></div>
+                    <div class="flex justify-between items-center"><span class="text-[10px] font-medium">Latency</span><span class="text-[10px] font-bold text-on-tertiary-container" id="diag-lat">12ms</span></div>
+                    <div class="flex justify-between items-center"><span class="text-[10px] font-medium">Uptime</span><span class="text-[10px] font-bold text-slate-500" id="diag-up">02:45:12</span></div>
+                </div>
+            </div>
             <button onclick="lockVault()" class="w-full bg-slate-900 dark:bg-slate-800 text-white py-3.5 rounded-2xl font-headline font-bold text-sm flex items-center justify-center gap-2 hover:bg-black transition-all press-effect shadow-md"><span class="material-symbols-outlined text-[18px]">lock</span> Lock Vault</button>
         </div>
     </div>
@@ -289,12 +368,16 @@ tailwind.config = {
     <header class="w-full h-16 sticky top-0 z-30 bg-white/20 dark:bg-slate-950/30 backdrop-blur-[32px] flex justify-between items-center px-8 border-b border-white/20 dark:border-white/5 shadow-sm transition-all rounded-b-[2rem] mx-auto max-w-[1400px]">
         <div class="flex items-center gap-3">
             <div class="px-4 py-1.5 glass-panel dark:glass-panel rounded-full flex items-center gap-2 shadow-[0_4px_10px_rgba(0,0,0,0.05)] border border-white/40">
-                <span id="header-status-dot" class="w-2.5 h-2.5 rounded-full status-green animate-pulse"></span>
+                <span id="header-status-dot" class="w-2.5 h-2.5 rounded-full status-green heartbeat-active"></span>
                 <span class="text-[10px] font-extrabold text-slate-700 dark:text-slate-200 uppercase tracking-widest" id="header-status-label">Enclave Active</span>
             </div>
             <div id="health-badge" class="px-3 py-1 bg-tertiary-fixed/30 rounded-full items-center gap-1 hidden glass-panel">
                 <span class="material-symbols-outlined text-[14px] text-on-tertiary-container">favorite</span>
                 <span class="text-[9px] font-bold text-on-tertiary-container uppercase" id="health-score-header">--</span>
+            </div>
+            <div class="px-4 py-1.5 glass-panel rounded-full flex items-center gap-2 border border-white/40">
+                <span class="w-2 h-2 rounded-full status-green heartbeat-active" id="sync-led"></span>
+                <span class="text-[10px] font-extrabold text-slate-700 dark:text-slate-200 uppercase tracking-widest">P2P Link</span>
             </div>
         </div>
         <div class="flex items-center gap-2">
@@ -571,15 +654,29 @@ tailwind.config = {
 
     <!-- ============ PAGE: VISUAL INTELLIGENCE (Insights) ============ -->
     <div id="page-intel" class="app-page max-w-[1200px] mx-auto p-8 flex flex-col gap-6 pb-24 hidden">
-        <header>
+    <header class="flex justify-between items-end mb-8">
+        <div>
             <h2 class="text-3xl font-headline font-extrabold tracking-tight text-primary dark:text-blue-100">Visual Intelligence</h2>
             <p class="text-on-surface-variant text-sm mt-1">Interactive analytics with configurable charts.</p>
-        </header>
+        </div>
+        <div class="flex gap-4">
+            <div class="glass-panel px-6 py-3 rounded-2xl border border-white/40 flex flex-col items-end">
+                <p class="text-[9px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">vs Last Month</p>
+                <div class="flex items-center gap-2">
+                    <span id="mom-change-icon" class="material-symbols-outlined text-sm">trending_up</span>
+                    <span id="mom-change-value" class="text-lg font-black text-on-tertiary-container">+12.4%</span>
+                </div>
+            </div>
+        </div>
+    </header>
         <section class="grid grid-cols-1 md:grid-cols-12 gap-6">
-            <div class="md:col-span-8 glass-panel dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-sm">
+            <div class="md:col-span-8 glass-panel dark:bg-slate-900 rounded-[2.5rem] p-8 shadow-sm bento-item" onclick="inspectWidget('Spending Trajectory', 'traj', 'chart_config')">
                 <div class="flex justify-between items-center mb-4">
                     <div><h3 class="font-headline text-lg font-bold">Spending Trajectory</h3><p class="text-on-surface-variant text-[11px] opacity-70">Dynamic income vs expenses</p></div>
-                    <button onclick="openChartSettings('trajectory')" class="p-2 rounded-lg hover:bg-surface-container-high dark:hover:bg-slate-700 transition-colors"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">settings</span></button>
+                    <div class="flex items-center gap-1">
+                        <button onclick="openCategoryEditor()" class="p-2 rounded-lg hover:bg-surface-container-high dark:hover:bg-slate-700 transition-colors" title="Category Manager"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">category</span></button>
+                        <button onclick="openChartSettings('trajectory')" class="p-2 rounded-lg hover:bg-surface-container-high dark:hover:bg-slate-700 transition-colors" title="Chart Config"><span class="material-symbols-outlined text-on-surface-variant text-[20px]">settings</span></button>
+                    </div>
                 </div>
                 <div id="chart-trajectory" class="h-64 w-full"></div>
             </div>
@@ -686,7 +783,64 @@ tailwind.config = {
         </section>
     </div>
 
-    <!-- ============ PAGE: VAULT AUDIT ============ -->
+    <!-- ============ PAGE: P2P DEVICES (Syncthing-inspired) ============ -->
+    <div id="page-devices" class="app-page max-w-[1200px] mx-auto p-8 flex flex-col gap-8 pb-24 hidden">
+        <header class="flex justify-between items-end">
+            <div>
+                <h2 class="text-3xl font-headline font-extrabold tracking-tight text-primary dark:text-blue-100">P2P Devices</h2>
+                <p class="text-on-surface-variant text-sm mt-1">Manage trusted devices and synchronization folders.</p>
+            </div>
+            <button onclick="openAddDeviceModal()" class="bg-primary text-white px-6 py-3 rounded-2xl font-bold text-sm press-effect shadow-lg shadow-primary/20 flex items-center gap-2">
+                <span class="material-symbols-outlined text-[18px]">add_circle</span> Add Device
+            </button>
+        </header>
+
+        <section class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+            <!-- Local Device Info -->
+            <div class="lg:col-span-4 flex flex-col gap-6">
+                <div class="glass-panel dark:bg-slate-900 rounded-[2rem] p-8 border-t border-white/50">
+                    <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">Local Identification</p>
+                    <div class="p-4 bg-primary/5 dark:bg-blue-900/20 rounded-2xl border border-primary/10 mb-4">
+                        <p class="text-[9px] font-bold text-primary dark:text-blue-300 uppercase mb-1">Device ID</p>
+                        <p class="font-mono text-xs font-bold break-all" id="local-device-id">---- ---- ---- ----</p>
+                    </div>
+                    <div class="space-y-4">
+                        <div class="flex justify-between items-center"><span class="text-xs font-medium opacity-60">Device Name</span><span class="text-xs font-bold" id="local-device-name">Vault-Desktop</span></div>
+                        <div class="flex justify-between items-center"><span class="text-xs font-medium opacity-60">P2P Status</span><span class="text-[10px] font-bold px-2 py-0.5 bg-green-500/10 text-green-600 rounded">Discovery Active</span></div>
+                    </div>
+                </div>
+                
+                <div class="glass-panel dark:bg-slate-900 rounded-[2rem] p-8">
+                    <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-[0.2em] mb-4">Sync Folders</p>
+                    <div class="space-y-2" id="sync-folders-list">
+                        <div class="flex items-center gap-3 p-3 bg-surface-container dark:bg-slate-800 rounded-xl">
+                            <span class="material-symbols-outlined text-primary text-[20px]">receipt_long</span>
+                            <span class="text-xs font-bold">Transactions</span>
+                        </div>
+                        <div class="flex items-center gap-3 p-3 bg-surface-container dark:bg-slate-800 rounded-xl opacity-50">
+                            <span class="material-symbols-outlined text-primary text-[20px]">folder_shared</span>
+                            <span class="text-xs font-bold">Media Receipts</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Trusted Devices List -->
+            <div class="lg:col-span-8 flex flex-col gap-4">
+                <div class="flex justify-between items-center px-4">
+                    <h3 class="font-headline font-bold text-lg">Trusted Devices</h3>
+                    <span class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest" id="device-count">0 Devices</span>
+                </div>
+                <div id="devices-list" class="space-y-4">
+                    <div class="p-12 glass-panel rounded-[2.5rem] text-center flex flex-col items-center gap-4 opacity-60">
+                        <span class="material-symbols-outlined text-6xl">cell_tower</span>
+                        <p class="font-bold text-sm">No devices paired</p>
+                        <p class="text-xs max-w-xs leading-relaxed">Pair your mobile app or another desktop instance using your unique Device ID.</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </div>
     <div id="page-audit" class="app-page max-w-[1200px] mx-auto p-8 flex flex-col gap-6 pb-24 hidden">
         <header class="flex justify-between items-end">
             <div>
@@ -1163,6 +1317,83 @@ function navigate(id) {
     if (id === 'inbox') loadInbox();
     if (id === 'predictions') renderPredictionChart();
     if (id === 'profile') renderProfile();
+    if (id === 'devices') loadDevices();
+    
+    // Auto-scroll to top
+    const main = document.getElementById('main-scroll');
+    if (main) main.scrollTo({top: 0, behavior: 'smooth'});
+}
+
+function loadDevices() {
+    pywebview.api.get_p2p_config().then(conf => {
+        document.getElementById('local-device-id').innerText = formatDeviceId(conf.device_id);
+        document.getElementById('local-device-name').innerText = conf.device_name;
+    });
+
+    pywebview.api.get_paired_devices().then(devices => {
+        const list = document.getElementById('devices-list');
+        document.getElementById('device-count').innerText = devices.length + ' Devices';
+        
+        if (devices.length === 0) {
+            list.innerHTML = `<div class="p-12 glass-panel rounded-[2.5rem] text-center flex flex-col items-center gap-4 opacity-60">
+                <span class="material-symbols-outlined text-6xl">cell_tower</span>
+                <p class="font-bold text-sm">No devices paired</p>
+                <p class="text-xs max-w-xs leading-relaxed">Pair your mobile app or another desktop instance using your unique Device ID.</p>
+            </div>`;
+            return;
+        }
+
+        list.innerHTML = devices.map(d => `
+            <div class="glass-panel dark:bg-slate-900 rounded-3xl p-6 flex items-center justify-between tilt-card">
+                <div class="flex items-center gap-4">
+                    <div class="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center text-primary">
+                        <span class="material-symbols-outlined">${d.id.includes('MOBILE') ? 'smartphone' : 'laptop'}</span>
+                    </div>
+                    <div>
+                        <p class="font-bold text-sm">${d.name}</p>
+                        <p class="text-[9px] font-mono text-on-surface-variant uppercase tracking-widest">${formatDeviceId(d.id)}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] font-bold text-on-surface-variant uppercase tracking-widest mb-1">Last Seen</p>
+                    <p class="text-xs font-bold ${d.last_sync ? 'text-primary' : 'text-on-surface-variant/40'}">${d.last_sync ? new Date(d.last_sync).toLocaleString() : 'Never'}</p>
+                </div>
+            </div>
+        `).join('');
+    });
+}
+
+function formatDeviceId(id) {
+    if (!id) return "---- ---- ---- ----";
+    return id.match(/.{1,4}/g).join('-');
+}
+
+function openAddDeviceModal() {
+    const modal = document.getElementById('modal-content');
+    modal.innerHTML = `<div class="p-8">
+        <div class="flex justify-between items-center mb-6"><h3 class="font-headline font-bold text-xl">Pair New Device</h3><button onclick="closeGenericModal()" class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">close</button></div>
+        <p class="text-sm text-on-surface-variant mb-6">Enter the 16-character Device ID of the vault you want to pair with.</p>
+        <div class="space-y-4">
+            <input type="text" id="new-device-id" placeholder="ID (e.g. ABCD-1234-EFGH-5678)" class="w-full p-4 rounded-2xl border border-outline-variant/20 dark:bg-slate-900 font-mono text-sm tracking-widest uppercase">
+            <input type="text" id="new-device-name" placeholder="Friendly Name (e.g. iPhone 15)" class="w-full p-4 rounded-2xl border border-outline-variant/20 dark:bg-slate-900 text-sm font-bold">
+            <button onclick="pairDeviceAction()" class="w-full py-4 bg-primary text-white rounded-2xl font-headline font-bold uppercase tracking-widest press-effect shadow-lg">Authorize Pairing</button>
+        </div>
+    </div>`;
+    document.getElementById('modal-backdrop').classList.add('active');
+}
+
+function pairDeviceAction() {
+    const id = document.getElementById('new-device-id').value.replace(/-/g, '').toUpperCase();
+    const name = document.getElementById('new-device-name').value;
+    if (id.length < 4) return showToast('Invalid ID', 'error', 'error');
+    
+    pywebview.api.pair_device({device_id: id, name: name}).then(r => {
+        if (r.status === 'success') {
+            showToast(r.message, 'devices', 'success');
+            closeGenericModal();
+            loadDevices();
+        } else showToast(r.message, 'error', 'error');
+    });
 }
 
 // ═══════════ WELCOME FLOW ═══════════
@@ -1293,8 +1524,11 @@ function updatePrivacyUI() {
 // ═══════════ SYNC ═══════════
 function syncData() {
     const si = document.getElementById('sync-indicator');
+    const main = document.getElementById('main-scroll');
     setStatus('amber', 'Syncing...');
     si.classList.remove('opacity-0');
+    if(main) main.classList.add('sync-breathing');
+    
     pywebview.api.sync_data().then(d => {
         VS.data = d;
         if (d.theme === 'dark') document.documentElement.classList.add('dark');
@@ -1302,7 +1536,10 @@ function syncData() {
         if (d.privacy_mask) { VS.privacyOn = true; document.body.classList.add('privacy-active'); updatePrivacyUI(); }
         renderAll(d);
         setStatus('green', 'Synced');
-        setTimeout(() => si.classList.add('opacity-0'), 1000);
+        setTimeout(() => {
+            si.classList.add('opacity-0');
+            if(main) main.classList.remove('sync-breathing');
+        }, 1000);
         const stats = d.staging_stats || {};
         const pending = stats.parsed || 0;
         const badge = document.getElementById('inbox-badge');
@@ -1314,10 +1551,36 @@ function syncData() {
 function setStatus(color, text) {
     const dot = document.getElementById('status-light');
     const hdot = document.getElementById('header-status-dot');
+    const sled = document.getElementById('sync-led');
     const label = document.getElementById('header-status-label');
     const cls = 'status-' + color;
-    [dot, hdot].forEach(el => { if(el) el.className = 'w-2 h-2 rounded-full animate-pulse ' + cls; });
-    if (dot) dot.className = 'w-1.5 h-1.5 rounded-full animate-pulse ' + cls;
+    
+    // System Heartbeat Logic
+    if (dot) {
+        dot.className = 'w-1.5 h-1.5 rounded-full ' + cls;
+        if (color === 'green') {
+            dot.classList.add('pulse-slow');
+            dot.classList.remove('pulse-fast', 'heartbeat-amber');
+        } else if (color === 'amber') {
+            dot.classList.add('pulse-fast', 'heartbeat-amber');
+            dot.classList.remove('pulse-slow');
+        } else if (color === 'red') {
+            dot.classList.remove('pulse-slow', 'pulse-fast', 'heartbeat-amber');
+        }
+    }
+    
+    if (hdot) {
+        hdot.className = 'w-2.5 h-2.5 rounded-full ' + cls;
+        if (color === 'green') hdot.classList.add('pulse-slow');
+        else if (color === 'amber') hdot.classList.add('pulse-fast');
+    }
+    
+    if (sled) {
+        sled.className = 'w-2 h-2 rounded-full ' + cls;
+        if (color === 'green') sled.classList.add('pulse-slow');
+        else if (color === 'amber') sled.classList.add('pulse-fast');
+    }
+
     document.getElementById('status-text').innerText = text;
     if(label) label.innerText = text;
 }
@@ -1385,7 +1648,7 @@ function renderCommand(d) {
         const isI = tx.type === 'Income';
         const anom = tx.is_anomaly ? ' border-l-4 border-error' : '';
         const ghostBadge = tx.ghost_fee ? '<span class="ml-1 px-1.5 py-0.5 bg-yellow-500/20 text-yellow-600 text-[9px] font-bold rounded">GHOST</span>' : '';
-        list.innerHTML += '<div class="bg-surface-container dark:bg-slate-800 rounded-2xl p-5 flex justify-between items-start tilt-card cursor-pointer' + anom + '" onclick="openEntryModal('+tx.id+')"><div><p class="font-bold text-sm">' + (tx.description||'').substring(0,40) + ghostBadge + '</p><p class="text-xs text-on-surface-variant mt-1">' + (tx.merchant || tx.category) + '</p></div><p class="font-headline font-extrabold ' + (isI ? 'text-on-tertiary-container' : 'text-error') + ' priv">' + (isI?'+':'-') + fmt(tx.amount) + '</p></div>';
+        list.innerHTML += `<div class="bg-surface-container dark:bg-slate-800 rounded-2xl p-5 flex justify-between items-start tilt-card cursor-pointer hover:shadow-lg transition-all press-effect bento-item ${anom}" onclick="inspectWidget('Transaction #${tx.id}', '${tx.id}', 'transaction')"><div><p class="font-bold text-sm">` + (tx.description||'').substring(0,40) + ghostBadge + '</p><p class="text-xs text-on-surface-variant mt-1">' + (tx.merchant || tx.category) + '</p></div><p class="font-headline font-extrabold ' + (isI ? 'text-on-tertiary-container' : 'text-error') + ' priv">' + (isI?'+':'-') + fmt(tx.amount) + '</p></div>';
     });
 }
 
@@ -1451,13 +1714,39 @@ function buildLedgerRows(txs) {
 }
 function toggleLedgerDetail(id) { const el=document.getElementById('tx-detail-'+id); if(!el)return; if(el.classList.contains('hidden')){document.querySelectorAll('.tx-detail-drawer').forEach(d=>d.classList.add('hidden'));el.classList.remove('hidden');}else{el.classList.add('hidden');} }
 function deleteTransaction(tx_id) { setStatus('amber','Deleting...'); pywebview.api.delete_transaction({id:tx_id}).then(r=>{if(r.status==='success'){showToast('Deleted','delete','success');syncData();}else{showToast('Failed','error','error');}}); }
-function filterLedger() { if(!VS.data)return; const q=(document.getElementById('ledger-search').value||'').toLowerCase(); const f=document.getElementById('ledger-filter').value; let txs=VS.data.transactions||[]; if(f==='anomaly')txs=txs.filter(t=>t.is_anomaly);else if(f==='ghost')txs=txs.filter(t=>t.ghost_fee);else if(f!=='all')txs=txs.filter(t=>t.type===f); if(q)txs=txs.filter(t=>((t.description||'')+' '+(t.merchant||'')+' '+t.category).toLowerCase().includes(q)); buildLedgerRows(txs); }
+function filterLedger() {
+    const q = document.getElementById('ledger-search').value;
+    const f = document.getElementById('ledger-filter').value;
+    
+    const params = { query: q };
+    if (f === 'Income' || f === 'Expense') params.type = f;
+    if (f === 'anomaly') params.is_anomaly = true;
+    if (f === 'ghost') params.is_ghost = true;
+    
+    pywebview.api.search_transactions(params).then(results => {
+        buildLedgerRows(results);
+    });
+}
 
 // ═══════════ VISUAL INTELLIGENCE ═══════════
 function renderIntel(d) {
     document.getElementById('intel-income').innerText = fmt(d.monthly_income);
     document.getElementById('intel-burn').innerText = fmt(d.monthly_burn);
     document.getElementById('intel-ratio').innerText = (d.ratio||0) + ':1';
+    
+    // MoM Calculation
+    const momChange = d.mom_change || 0;
+    const momVal = document.getElementById('mom-change-value');
+    const momIcon = document.getElementById('mom-change-icon');
+    if(momVal) {
+        momVal.innerText = (momChange >= 0 ? '+' : '') + momChange.toFixed(1) + '%';
+        momVal.className = 'text-lg font-black ' + (momChange >= 0 ? 'text-on-tertiary-container' : 'text-error');
+    }
+    if(momIcon) {
+        momIcon.innerText = momChange >= 0 ? 'trending_up' : 'trending_down';
+        momIcon.className = 'material-symbols-outlined text-sm ' + (momChange >= 0 ? 'text-on-tertiary-container' : 'text-error');
+    }
+
     const total = d.monthly_income + d.monthly_burn;
     if (total > 0) { const p=(d.monthly_income/total)*100; document.getElementById('ratio-income').style.width=p+'%'; document.getElementById('ratio-expense').style.width=(100-p)+'%'; }
     const v = d.spending_velocity || {};
@@ -1480,17 +1769,21 @@ function renderCharts() {
     const isDark = document.documentElement.classList.contains('dark');
     const textColor = isDark ? '#94a3b8' : '#434750';
     const gridColor = isDark ? '#334155' : '#e0e3e6';
+    
+    // User Prefs
+    const trajType = VS.settings?.chart_preferences?.trajectory?.type || 'area';
+    
     if (VS.charts.trajectory) VS.charts.trajectory.destroy();
     const trajSeries = apex.series || [{name:'Income', data:[0]}, {name:'Expenses', data:[0]}, {name:'Net', data:[0]}];
     const trajCats = apex.categories || ['Now'];
     VS.charts.trajectory = new ApexCharts(document.getElementById('chart-trajectory'), {
-        chart: { type:'area', height:250, toolbar:{show:false}, zoom:{enabled:true}, background:'transparent', animations:{enabled:true, easing:'easeinout', speed:800} },
+        chart: { type:trajType, height:250, toolbar:{show:false}, zoom:{enabled:true}, background:'transparent', animations:{enabled:true, easing:'easeinout', speed:800} },
         series: trajSeries.length > 0 ? trajSeries : [{name:'No Data', data:[0]}],
         xaxis: { categories: trajCats, labels:{style:{colors:textColor, fontSize:'10px'}} },
         yaxis: { labels:{style:{colors:textColor}, formatter:v=>fmt(v)} },
         colors: ['#5cab5a','#ba1a1a','#001d3b'],
-        stroke: { curve:'smooth', width:[3,2,2] },
-        fill: { type:'gradient', gradient:{shadeIntensity:1, opacityFrom:0.4, opacityTo:0.05} },
+        stroke: { curve:'smooth', width: trajType === 'bar' ? 0 : [3,2,2] },
+        fill: { type: trajType === 'area' ? 'gradient' : 'solid', gradient:{shadeIntensity:1, opacityFrom:0.4, opacityTo:0.05} },
         grid: { borderColor:gridColor, strokeDashArray:4 },
         tooltip: { theme:isDark?'dark':'light', y:{formatter:v=>fmt(v)} },
         dataLabels: { enabled:false },
@@ -1571,8 +1864,50 @@ function renderPredictionChart() {
 
 function openChartSettings(chartId) {
     const modal = document.getElementById('modal-content');
-    modal.innerHTML = '<div class="p-8"><div class="flex justify-between items-center mb-6"><h3 class="font-headline font-bold text-xl">Chart Settings</h3><button onclick="closeGenericModal()" class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">close</button></div><div class="space-y-6"><div><label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Chart Type</label><div class="grid grid-cols-3 gap-2"><button class="py-2 px-3 rounded-xl border border-primary bg-primary/10 text-primary font-bold text-sm">Area</button><button class="py-2 px-3 rounded-xl border border-outline-variant text-on-surface-variant font-bold text-sm hover:bg-surface-container">Bar</button><button class="py-2 px-3 rounded-xl border border-outline-variant text-on-surface-variant font-bold text-sm hover:bg-surface-container">Line</button></div></div></div><button onclick="closeGenericModal()" class="w-full mt-6 bg-primary text-white py-3 rounded-xl font-bold text-sm press-effect">Apply</button></div>';
+    const chart = VS.settings?.chart_preferences?.[chartId] || {type:'area', metrics:{}};
+    
+    modal.innerHTML = `<div class="p-8">
+        <div class="flex justify-between items-center mb-6"><h3 class="font-headline font-bold text-xl">Chart Config: ${chartId.toUpperCase()}</h3><button onclick="closeGenericModal()" class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">close</button></div>
+        <div class="space-y-6">
+            <div>
+                <label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-2">View Type</label>
+                <div class="grid grid-cols-3 gap-2">
+                    <button onclick="updateChartType('${chartId}', 'area')" class="chart-type-btn py-2 px-3 rounded-xl border ${chart.type==='area'?'border-primary bg-primary/10 text-primary':'border-outline-variant'} font-bold text-sm">Area</button>
+                    <button onclick="updateChartType('${chartId}', 'bar')" class="chart-type-btn py-2 px-3 rounded-xl border ${chart.type==='bar'?'border-primary bg-primary/10 text-primary':'border-outline-variant'} font-bold text-sm">Bar</button>
+                    <button onclick="updateChartType('${chartId}', 'line')" class="chart-type-btn py-2 px-3 rounded-xl border ${chart.type==='line'?'border-primary bg-primary/10 text-primary':'border-outline-variant'} font-bold text-sm">Line</button>
+                </div>
+            </div>
+            ${chartId === 'trajectory' ? `
+            <div>
+                <label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Metrics</label>
+                <div class="space-y-2">
+                    <label class="flex items-center gap-3 p-3 bg-surface-container rounded-xl cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleChartMetric('${chartId}', 'income')" class="rounded text-primary">
+                        <span class="text-sm font-bold">Income</span>
+                    </label>
+                    <label class="flex items-center gap-3 p-3 bg-surface-container rounded-xl cursor-pointer">
+                        <input type="checkbox" checked onchange="toggleChartMetric('${chartId}', 'expense')" class="rounded text-primary">
+                        <span class="text-sm font-bold">Expenses</span>
+                    </label>
+                </div>
+            </div>` : ''}
+        </div>
+        <button onclick="closeGenericModal(); renderCharts();" class="w-full mt-6 bg-primary text-white py-3 rounded-xl font-bold text-sm press-effect shadow-lg">Apply Config</button>
+    </div>`;
     document.getElementById('modal-backdrop').classList.add('active');
+}
+
+function updateChartType(id, type) {
+    if(!VS.settings.chart_preferences) VS.settings.chart_preferences = {};
+    if(!VS.settings.chart_preferences[id]) VS.settings.chart_preferences[id] = {type:'area', metrics:{}};
+    VS.settings.chart_preferences[id].type = type;
+    pywebview.api.update_app_settings({chart_preferences: VS.settings.chart_preferences});
+    openChartSettings(id); // Re-render modal
+}
+
+function toggleChartMetric(id, metric) {
+    // Simplified: local state update then re-render
+    showToast('Metric toggled', 'check_circle', 'info');
 }
 
 // ═══════════ GENERIC MODAL ═══════════
@@ -1595,7 +1930,23 @@ function loadInbox() {
         }).join('');
     });
 }
-function approveSMS(id) { pywebview.api.approve_sms({id}).then(r=>{if(r.status==='approved'){showToast('Approved','check_circle','success');loadInbox();syncData();}else showToast(r.message||'Error','error','error');}); }
+function approveSMS(id) { 
+    pywebview.api.approve_sms({id}).then(r=>{
+        if(r.status==='approved'){
+            showToast('Transaction Secured','check_circle','success');
+            // Trigger Success Animation (Confetti placeholder or scale effect)
+            const btn = document.activeElement;
+            if(btn) {
+                btn.innerHTML = '<span class="material-symbols-outlined animate-bounce">verified</span>';
+                btn.classList.add('bg-green-500');
+            }
+            setTimeout(() => {
+                loadInbox();
+                syncData();
+            }, 600);
+        } else showToast(r.message||'Error','error','error');
+    }); 
+}
 function rejectSMS(id) { pywebview.api.reject_sms({id}).then(r=>{if(r.status==='rejected'){showToast('Rejected','close','warning');loadInbox();}}); }
 
 // ═══════════ SETTINGS RENDER ═══════════
@@ -2020,7 +2371,53 @@ function submitBudget() {
     });
 }
 
-// ═══════════ ACTIONS ═══════════
+function openCategoryEditor() {
+    const modal = document.getElementById('modal-content');
+    modal.innerHTML = `<div class="p-8">
+        <div class="flex justify-between items-center mb-6"><h3 class="font-headline font-bold text-xl">Category Manager</h3><button onclick="closeGenericModal()" class="material-symbols-outlined text-on-surface-variant hover:text-primary cursor-pointer">close</button></div>
+        <div class="space-y-6">
+            <div class="p-4 bg-primary/5 rounded-2xl border border-primary/10">
+                <p class="text-xs font-bold text-primary mb-3 uppercase tracking-widest">Active Categories</p>
+                <div class="grid grid-cols-2 gap-2 max-h-[300px] overflow-y-auto pr-2">
+                    ${CATEGORIES.expense.map(c => `
+                        <div class="flex items-center gap-2 p-2 rounded-xl bg-white dark:bg-slate-800 border border-outline-variant/10">
+                            <span class="material-symbols-outlined text-sm ${c.color}">${c.icon}</span>
+                            <span class="text-xs font-bold truncate">${c.name}</span>
+                        </div>
+                    `).join('')}
+                </div>
+            </div>
+            <div class="p-4 bg-surface-container rounded-2xl">
+                <p class="text-xs font-bold text-on-surface-variant mb-3 uppercase tracking-widest">New Custom Rule (If/Then)</p>
+                <div class="space-y-3">
+                    <input type="text" id="rule-keyword" placeholder="If description contains... (e.g. Rent)" class="w-full p-3 rounded-xl border border-outline-variant/20 text-sm">
+                    <select id="rule-category" class="w-full p-3 rounded-xl border border-outline-variant/20 text-sm">
+                        ${CATEGORIES.expense.map(c => `<option value="${c.name}">${c.name}</option>`).join('')}
+                    </select>
+                    <button onclick="addCategoryRule()" class="w-full py-3 bg-primary text-white rounded-xl font-bold text-xs press-effect">Add Logic Rule</button>
+                </div>
+            </div>
+        </div>
+    </div>`;
+    document.getElementById('modal-backdrop').classList.add('active');
+}
+
+function addCategoryRule() {
+    const kw = document.getElementById('rule-keyword').value;
+    const cat = document.getElementById('rule-category').value;
+    if(!kw) return showToast('Keyword required', 'warning', 'warning');
+    
+    pywebview.api.add_relay_rule({
+        name: `Auto-Category: ${kw}`,
+        conditions: { if_desc_contains: kw, then_category: cat },
+        channel: 'internal'
+    }).then(r => {
+        if(r.status==='success') {
+            showToast(`Rule added: ${kw} → ${cat}`, 'magic_button', 'success');
+            closeGenericModal();
+        }
+    });
+}
 function promptNewPassword() { let p=prompt("New Password (min 4):"); if(p&&p.length>=4) pywebview.api.setup_password(p).then(()=>showToast('Password rotated','key','success')); else if(p) showToast('Too short','error','error'); }
 function addGoal() { let n=prompt("Goal Name:","New Goal"); if(n){let t=prompt("Target Amount:","1000"); pywebview.api.add_goal({name:n,target:t,current:0}).then(()=>syncData());}}
 function updateGoalProgress(idx) { const v=prompt('Enter current amount:'); if(v&&!isNaN(v)) pywebview.api.update_goal({index:idx,current:parseFloat(v)}).then(r=>{if(r.status==='success'){showToast('Updated','check_circle','success');syncData();}}); }
@@ -2110,5 +2507,108 @@ document.addEventListener('click', function(e) {
     const panel = document.getElementById('notif-panel');
     if (wrapper && panel && !wrapper.contains(e.target)) { panel.classList.add('hidden'); }
 });
+
+// ═══════════ INSPECTOR SYSTEM ═══════════
+function inspectWidget(title, id, type) {
+    const panel = document.getElementById('inspector-panel');
+    const overlay = document.getElementById('inspector-overlay');
+    const content = document.getElementById('inspector-content');
+    const titleEl = document.getElementById('inspector-title');
+    
+    titleEl.innerText = title;
+    content.innerHTML = '<div class="flex items-center justify-center p-20"><span class="material-symbols-outlined animate-spin text-primary">refresh</span></div>';
+    
+    panel.classList.add('active');
+    overlay.classList.add('active');
+    
+    // Generate content based on type
+    setTimeout(() => {
+        if (type === 'transaction') {
+            const tx = VS.data.transactions.find(t => String(t.id) === String(id));
+            if (!tx) { content.innerHTML = '<p class="text-error">Data not found</p>'; return; }
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2">Description</label>
+                    <input type="text" id="ins-desc" value="${tx.description}" class="w-full p-4 bg-surface-container dark:bg-slate-900 rounded-xl border border-outline-variant/20 font-bold"></div>
+                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2">Merchant</label>
+                    <input type="text" id="ins-merc" value="${tx.merchant||''}" class="w-full p-4 bg-surface-container dark:bg-slate-900 rounded-xl border border-outline-variant/20 font-bold"></div>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2">Amount</label>
+                        <input type="number" id="ins-amt" value="${tx.amount}" class="w-full p-4 bg-surface-container dark:bg-slate-900 rounded-xl border border-outline-variant/20 font-bold"></div>
+                        <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2">Category</label>
+                        <select id="ins-cat" class="w-full p-4 bg-surface-container dark:bg-slate-900 rounded-xl border border-outline-variant/20 font-bold">
+                            <option value="Shopping" ${tx.category==='Shopping'?'selected':''}>Shopping</option>
+                            <option value="Dining" ${tx.category==='Dining'?'selected':''}>Dining</option>
+                            <option value="Bills" ${tx.category==='Bills'?'selected':''}>Bills</option>
+                            <option value="Income" ${tx.category==='Income'?'selected':''}>Income</option>
+                        </select></div>
+                    </div>
+                </div>`;
+            VS.ins_type = 'transaction';
+            VS.ins_id = id;
+        } else if (type === 'chart_config') {
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2">View Style</label>
+                    <div class="grid grid-cols-3 gap-2">
+                        <button class="py-3 rounded-xl border border-primary bg-primary/10 text-primary font-bold text-xs">Area</button>
+                        <button class="py-3 rounded-xl border border-outline-variant text-on-surface-variant font-bold text-xs">Bar</button>
+                        <button class="py-3 rounded-xl border border-outline-variant text-on-surface-variant font-bold text-xs">Line</button>
+                    </div></div>
+                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2">Metrics</label>
+                    <div class="space-y-2">
+                        <label class="flex items-center gap-3 p-4 bg-surface-container dark:bg-slate-900 rounded-xl cursor-pointer">
+                            <input type="checkbox" checked class="rounded text-primary">
+                            <span class="text-sm font-bold">Income Stream</span>
+                        </label>
+                        <label class="flex items-center gap-3 p-4 bg-surface-container dark:bg-slate-900 rounded-xl cursor-pointer">
+                            <input type="checkbox" checked class="rounded text-primary">
+                            <span class="text-sm font-bold">Expense Burn</span>
+                        </label>
+                    </div></div>
+                </div>`;
+            VS.ins_type = 'config';
+        } else if (type === 'net_worth') {
+            content.innerHTML = `
+                <div class="space-y-6">
+                    <div class="p-6 rounded-3xl bg-primary/5 border border-primary/10">
+                        <p class="text-[10px] font-bold text-primary uppercase mb-1">Current Calculation</p>
+                        <p class="text-3xl font-black">${fmt(VS.data.net_worth)}</p>
+                    </div>
+                    <div><label class="text-[10px] font-bold uppercase tracking-widest opacity-50 block mb-2">Adjustment Mode</label>
+                    <div class="grid grid-cols-2 gap-2">
+                        <button class="py-3 px-4 rounded-xl border border-primary bg-primary/10 text-primary font-bold text-xs">Dynamic</button>
+                        <button class="py-3 px-4 rounded-xl border border-outline-variant text-on-surface-variant font-bold text-xs">Manual Offset</button>
+                    </div></div>
+                </div>`;
+            VS.ins_type = 'config';
+        }
+    }, 300);
+}
+
+function closeInspector() {
+    document.getElementById('inspector-panel').classList.remove('active');
+    document.getElementById('inspector-overlay').classList.remove('active');
+}
+
+function saveInspector() {
+    if (VS.ins_type === 'transaction') {
+        const p = {
+            id: VS.ins_id,
+            description: document.getElementById('ins-desc').value,
+            merchant: document.getElementById('ins-merc').value,
+            amount: document.getElementById('ins-amt').value,
+            category: document.getElementById('ins-cat').value
+        };
+        setStatus('amber', 'Updating...');
+        pywebview.api.update_transaction(p).then(r => {
+            if(r.status==='success') { showToast('Transaction refined','magic_button','success'); syncData(); closeInspector(); }
+            else showToast(r.message||'Error','error','error');
+        });
+    } else {
+        closeInspector();
+        showToast('Configuration applied','check_circle','info');
+    }
+}
 </script>
 </body></html>

@@ -22,16 +22,43 @@ def create_sms_server(vault_api: VaultPro, port: int = 8765, use_https: bool = F
         if "paired_devices" not in vault_api.data:
             vault_api.data["paired_devices"] = []
 
-        # Dependency to enforce Valid Token
-        def verify_token(x_vault_token: str = Header(None, alias="X-Vault-Token")):
-            expected_token = vault_api.settings.get("sms_token", "")
-            if not expected_token or x_vault_token != expected_token:
-                raise HTTPException(status_code=401, detail="Invalid P2P Sync Token")
-            return x_vault_token
+        # Dependency to enforce Valid P2P Device ID
+        def verify_p2p_device(x_vault_device_id: str = Header(None, alias="X-Vault-Device-ID")):
+            paired_devices = vault_api.settings.get("paired_devices", [])
+            if not any(d["id"] == x_vault_device_id for d in paired_devices):
+                # Check if it's the very first device and we're in "Pairing Mode"
+                # For now, require explicit pairing via the UI
+                raise HTTPException(status_code=401, detail="Unauthorized P2P Device")
+            return x_vault_device_id
+
+        @app.post("/api/p2p/handshake")
+        async def p2p_handshake(payload: dict):
+            """Initial handshake for device discovery"""
+            remote_id = payload.get("device_id")
+            remote_name = payload.get("name")
+            return {
+                "status": "waiting_for_approval",
+                "local_id": vault_api.settings.get("device_id"),
+                "local_name": vault_api.settings.get("device_name")
+            }
+
+        @app.post("/api/p2p/sync")
+        async def p2p_sync(request: Request, payload: dict, device_id: str = Depends(verify_p2p_device)):
+            """Full P2P sync (Syncthing-inspired delta sync)"""
+            client_ip = request.client.host if request.client else "unknown"
+            logging.info(f"P2P Sync: Inbound from {device_id} ({client_ip})")
+            
+            # Pass to API for hash check and merge
+            result = vault_api.sync_p2p(payload)
+            return result
 
         @app.post("/api/sms")
         async def receive_sms(request: Request, payload: dict, token: str = Depends(verify_token)):
             """Receive SMS from mobile app P2P sync"""
+            # Log sync event for audit
+            client_ip = request.client.host if request.client else "unknown"
+            logging.info(f"P2P: Sync request from {client_ip}")
+            
             _track_device(request, vault_api)
             return vault_api.receive_sms(payload)
 

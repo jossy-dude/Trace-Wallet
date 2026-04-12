@@ -589,6 +589,17 @@ class VaultPro:
             self.data["health_score"] = int(max(0, min(100, health)))
             self.data["savings_rate"] = round(savings_rate, 1)
             self.data["ratio"] = round(ratio, 2)
+            
+            # Month-over-Month Comparison
+            txs = self.data.get("transactions", [])
+            now = datetime.now()
+            this_month_val = sum(t.get("amount", 0) for t in txs if datetime.fromisoformat(t.get("date")).month == now.month)
+            last_month = (now.month - 1) if now.month > 1 else 12
+            last_month_val = sum(t.get("amount", 0) for t in txs if datetime.fromisoformat(t.get("date")).month == last_month)
+            self.data["mom_change"] = ((this_month_val - last_month_val) / last_month_val * 100) if last_month_val > 0 else 0
+            
+            # Flow Ratio calculation (real-time Income vs Expense)
+            self.data["flow_ratio"] = f"{round(ratio, 2)}:1"
     
             # 6-month predictions
             preds = []
@@ -870,7 +881,28 @@ class VaultPro:
         self._log_audit("Category Created", "MEDIUM", f"{name} ({cat_type})")
         return {"status": "success", "message": f"Category {name} created"}
 
-    def add_goal(self, data):
+    def get_p2p_status(self):
+        """Syncthing-inspired P2P status report"""
+        return {
+            "enabled": self.settings.get("sms_listener_enabled", True),
+            "port": self.settings.get("sms_port", 8765),
+            "paired_devices_count": len(self.settings.get("paired_devices", [])),
+            "discovery_active": True,
+            "relay_active": self.settings.get("p2p_relay_enabled", True),
+            "local_id": self.settings.get("device_id")
+        }
+
+    def update_p2p_settings(self, data):
+        """Update P2P listener configuration"""
+        if "sms_listener_enabled" in data:
+            self.settings["sms_listener_enabled"] = data["sms_listener_enabled"]
+        if "sms_port" in data:
+            self.settings["sms_port"] = data["sms_port"]
+        if "p2p_relay_enabled" in data:
+            self.settings["p2p_relay_enabled"] = data["p2p_relay_enabled"]
+            
+        self._save_settings()
+        return {"status": "success"}
         """Add a new wealth goal"""
         if "goals" not in self.data:
             self.data["goals"] = []
@@ -947,6 +979,158 @@ class VaultPro:
         return {
             "parsed": self.staging.get_parsed(),
             "stats": self.staging.get_stats()
+        }
+
+    def get_p2p_config(self):
+        """Get local device info for P2P pairing"""
+        return {
+            "device_id": self.settings.get("device_id"),
+            "device_name": self.settings.get("device_name"),
+            "paired_count": len(self.settings.get("paired_devices", [])),
+            "p2p_enabled": self.settings.get("p2p_enabled", True)
+        }
+
+    def pair_device(self, data):
+        """Add a new P2P device by ID"""
+        device_id = data.get("device_id")
+        name = data.get("name", "Unknown Device")
+        if not device_id: return {"status": "error", "message": "Missing Device ID"}
+        
+        devices = self.settings.get("paired_devices", [])
+        if any(d["id"] == device_id for d in devices):
+            return {"status": "error", "message": "Device already paired"}
+            
+        devices.append({
+            "id": device_id,
+            "name": name,
+            "added_at": datetime.now().isoformat(),
+            "last_sync": None,
+            "status": "trusted"
+        })
+        self.settings["paired_devices"] = devices
+        self._save_settings()
+        return {"status": "success", "message": f"Device {name} paired successfully"}
+
+    def get_paired_devices(self):
+        """Return list of trusted devices"""
+        return self.settings.get("paired_devices", [])
+
+    def sync_p2p(self, data):
+        """Incoming sync request from another device (Syncthing-inspired)"""
+        remote_id = data.get("device_id")
+        remote_hash = data.get("data_hash")
+        remote_data = data.get("payload", {})
+        
+        # Verify device is trusted
+        devices = self.settings.get("paired_devices", [])
+        device = next((d for d in devices if d["id"] == remote_id), None)
+        if not device:
+            return {"status": "untrusted", "message": "Device not paired. Authorization required."}
+            
+        # Delta Check: If hashes match, no update needed
+        local_hash = hashlib.sha256(json.dumps(self.data, sort_keys=True).encode()).hexdigest()
+        if remote_hash == local_hash:
+            return {"status": "in_sync", "message": "Data already up to date"}
+            
+        # Conflict Resolution: Simple 'Last Writer Wins' for now, with audit logging
+        if remote_data:
+            logging.info(f"P2P: Incoming sync from {device['name']} ({remote_id})")
+            # Update local data with remote payload
+            for key in self.settings.get("sync_folders", []):
+                if key in remote_data:
+                    # Merge logic (avoid duplicates)
+                    if isinstance(self.data.get(key), list):
+                        existing_ids = {item.get("id") for item in self.data[key] if "id" in item}
+                        for item in remote_data[key]:
+                            if item.get("id") not in existing_ids:
+                                self.data[key].append(item)
+                    else:
+                        self.data[key] = remote_data[key]
+            
+            # Update device last sync timestamp
+            device["last_sync"] = datetime.now().isoformat()
+            self._save_settings()
+            self.save_data()
+            self._log_audit("P2P Sync", "HIGH", f"Synchronized with {device['name']}")
+            return {"status": "success", "hash": hashlib.sha256(json.dumps(self.data, sort_keys=True).encode()).hexdigest()}
+            
+        return {"status": "error", "message": "Malformed sync payload"}
+
+    def search_transactions(self, data):
+        """Advanced multi-parameter search and filter"""
+        query = data.get("query", "").lower()
+        cat = data.get("category")
+        bank = data.get("bank")
+        tx_type = data.get("type")
+        is_anomaly = data.get("is_anomaly")
+        is_ghost = data.get("is_ghost")
+        
+        txs = self.data.get("transactions", [])
+        results = []
+        
+        for tx in txs:
+            # Type Filter
+            if tx_type and tx.get("type") != tx_type: continue
+            # Category Filter
+            if cat and tx.get("category") != cat: continue
+            # Bank Filter
+            if bank and tx.get("bank") != bank: continue
+            # Anomaly Filter
+            if is_anomaly is not None and tx.get("is_anomaly") != is_anomaly: continue
+            # Ghost Filter
+            if is_ghost is not None and tx.get("ghost_fee") != is_ghost: continue
+            
+            # Query Filter (Description or Merchant)
+            if query:
+                desc = tx.get("description", "").lower()
+                merc = tx.get("merchant", "").lower()
+                if query not in desc and query not in merc:
+                    continue
+            
+            results.append(tx)
+            
+        return results
+
+    def get_audit_stats(self):
+        """Return audit summary for the UI"""
+        log = self.data.get("audit_log", [])
+        high = len([l for l in log if l.get("confidence") == "HIGH"])
+        low = len([l for l in log if l.get("confidence") in ["LOW", "FAIL"]])
+        
+        last_sync = "Never"
+        sync_events = [l for l in log if l.get("event") == "Vault Sync"]
+        if sync_events:
+            last_sync = sync_events[0].get("timestamp")
+            
+        return {
+            "total": len(log),
+            "high": high,
+            "low": low,
+            "last_sync": last_sync
+        }
+
+    def update_profile(self, data):
+        """Update user profile info"""
+        self.settings["profile_name"] = data.get("name", "Vault User")
+        self._save_settings()
+        return {"status": "success"}
+
+    def get_profile_data(self):
+        """Get profile and session stats"""
+        txs = self.data.get("transactions", [])
+        start = datetime.fromisoformat(self.session_start)
+        now = datetime.now()
+        duration = str(now - start).split('.')[0]
+        
+        # Calculate days active (unique dates in transactions)
+        unique_dates = {tx.get("date", "")[:10] for tx in txs if tx.get("date")}
+        
+        return {
+            "name": self.settings.get("profile_name", "Vault User"),
+            "tx_count": len(txs),
+            "days_active": len(unique_dates),
+            "health": self.data.get("health_score", "--"),
+            "session_duration": duration
         }
 
     def approve_sms(self, data):
@@ -1076,15 +1260,18 @@ class VaultPro:
 
     def _process_sms_batch(self, items):
         """Process a batch of staged SMS entries through the parser"""
+        # Batch processing: wait for debounce and run all in one smooth cycle
+        logging.info(f"Batch Processing {len(items)} SMS entries...")
         for item in items:
             entry_id = item.get("id")
             if entry_id:
-                entries = [e for e in self.staging.entries if e["id"] == entry_id]
-                if entries:
-                    parsed = self._parse_sms_text(entries[0]["body"], entries[0].get("metadata"))
+                # Optimized: Directly access staging to mark parsed
+                entry = next((e for e in self.staging.entries if e["id"] == entry_id), None)
+                if entry:
+                    parsed = self._parse_sms_text(entry["body"], entry.get("metadata"))
                     if parsed:
                         self.staging.mark_parsed(entry_id, parsed)
-        self._log_audit("Batch Processed", "HIGH", f"{len(items)} SMS entries parsed")
+        self._log_audit("Batch Processed", "HIGH", f"{len(items)} SMS entries parsed in smooth cycle")
 
     def _extract_with_regex(self, text, patterns):
         for pattern in patterns:

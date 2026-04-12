@@ -2,6 +2,7 @@ import 'package:isar/isar.dart';
 import 'package:path_provider/path_provider.dart';
 import '../models/vault_transaction.dart';
 import '../models/vault_person.dart';
+import '../models/paired_device.dart';
 
 class DatabaseService {
   // Singleton instance
@@ -20,7 +21,7 @@ class DatabaseService {
 
     // Open Isar with our defined schemas
     _isar = await Isar.open(
-      [VaultTransactionSchema, VaultPersonSchema],
+      [VaultTransactionSchema, VaultPersonSchema, PairedDeviceSchema],
       directory: dir.path,
     );
   }

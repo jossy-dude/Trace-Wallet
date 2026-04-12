@@ -114,6 +114,13 @@ class RelayRuleEngine:
         """Check if transaction matches rule conditions"""
         conditions = rule.get("conditions", {})
 
+        # If/Then logic for Category Overrides (Power-User Tool)
+        if "if_desc_contains" in conditions:
+            if conditions["if_desc_contains"].lower() in tx.get("description", "").lower():
+                if "then_category" in conditions:
+                    tx["category"] = conditions["then_category"]
+                    return True # Trigger relay if matched
+
         # Bank filter
         if "bank" in conditions:
             if tx.get("bank", "").lower() != conditions["bank"].lower():
