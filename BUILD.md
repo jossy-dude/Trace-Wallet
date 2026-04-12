@@ -11,9 +11,45 @@
 
 ### For Android Mobile Build:
 - Flutter SDK 3.0+
-- Android Studio
-- Android SDK
+- **Full Android SDK** (see below — the standalone `platform-tools` zip is **not** enough)
+- Android Studio (easiest way to install the SDK and accept licenses)
 - JDK 17
+
+### Android SDK: `ANDROID_HOME` and what counts as “the SDK”
+
+- **`platform-tools` only** (e.g. a zip with `adb.exe`, `fastboot.exe`) is **not** the Android SDK root. Flutter also needs **`platforms/`** (e.g. Android 34 or 35) and **`build-tools/`**.
+- **`ANDROID_HOME`** (or **`ANDROID_SDK_ROOT`**) must point to the **SDK root**: the folder that **contains** a `platform-tools` subfolder **alongside** `platforms` and `build-tools`.
+
+Example of a **correct** layout (typical after installing via Android Studio):
+
+```text
+%LOCALAPPDATA%\Android\Sdk\
+  platform-tools\
+  platforms\android-35\
+  build-tools\35.0.0\
+  ...
+```
+
+Then set (PowerShell — adjust the path if your SDK is elsewhere):
+
+```powershell
+$env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:Path += ";$env:ANDROID_HOME\platform-tools"
+```
+
+After installing platforms/build-tools, run:
+
+```powershell
+flutter doctor
+flutter doctor --android-licenses
+```
+
+**If you only unzipped** `platform-tools-latest-windows`, install the rest via **Android Studio → Settings → Languages & Frameworks → Android SDK** (SDK Platforms + SDK Tools), or install Google’s **Command line tools** and use `sdkmanager` to add `platforms;android-35` and `build-tools;35.0.0`.
+
+### Visual Studio Build Tools vs Android Studio
+
+- **Visual Studio Build Tools** (C++ workload) help **Python** / **pywebview** / **pythonnet** compile on Windows. They do **not** replace the **Android SDK**.
+- **Android Studio** (or the standalone SDK + cmdline-tools) is what provides **Flutter’s Android build** dependencies.
 
 ---
 
