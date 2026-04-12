@@ -13,20 +13,13 @@ if not exist "venv" (
 REM Activate virtual environment
 call venv\Scripts\activate
 
-REM Install dependencies
+REM Install dependencies (matches CI and requirements.txt)
 echo Installing dependencies...
-pip install pywebview fastapi uvicorn
+pip install -r requirements.txt pyinstaller
 
-REM Build executable with PyInstaller
+REM Build executable with PyInstaller (single spec: datas, hidden imports)
 echo Building executable...
-pyinstaller --name=VaultAnalytics ^
-    --onefile ^
-    --windowed ^
-    --add-data="index.html;." ^
-    --add-data="vault;vault" ^
-    --clean ^
-    --noconfirm ^
-    main.py
+pyinstaller VaultAnalytics.spec
 
 if %ERRORLEVEL% == 0 (
     echo Build successful!
