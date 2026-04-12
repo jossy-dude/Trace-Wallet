@@ -1,0 +1,90 @@
+name: Create Release
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version (e.g., v1.1.0)'
+        required: true
+        default: 'v1.1.0'
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+
+    # Build Windows
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Windows dependencies
+      run: |
+        cd vault_analytics
+        pip install pywebview fastapi uvicorn pyinstaller requests urllib3 charset-normalizer idna certifi packaging
+
+    - name: Build Windows executable
+      run: |
+        cd vault_analytics
+        pyinstaller --name=VaultAnalytics --onefile --windowed --add-data="index.html;." --add-data="vault;vault" --hidden-import=requests --hidden-import=urllib3 --hidden-import=charset_normalizer --hidden-import=idna --hidden-import=certifi --hidden-import=packaging --hidden-import=packaging.version --hidden-import=packaging.specifiers --hidden-import=packaging.requirements main.py
+
+    # Build Android
+    - name: Set up Java
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: Set up Android SDK
+      uses: android-actions/setup-android@v3
+
+    - name: Accept Android Licenses
+      run: yes | sdkmanager --licenses || true
+
+    - name: Set up Flutter
+      uses: subosito/flutter-action@v2
+      with:
+        flutter-version: '3.41.6'
+        channel: 'stable'
+
+    - name: Clean build environment
+      run: flutter clean
+
+    - name: Get dependencies
+      run: flutter pub get
+
+    - name: Build APK
+      run: flutter build apk --release --no-shrink
+
+    - name: Build App Bundle
+      run: flutter build appbundle --release --no-shrink
+
+    # Rename artifacts
+    - name: Rename artifacts
+      run: |
+        mkdir -p release
+        cp vault_analytics/dist/VaultAnalytics.exe release/VaultAnalytics-v${{ github.event.inputs.version || github.ref_name }}-Windows.exe
+        cp build/app/outputs/flutter-apk/app-release.apk release/TraceWallet-v${{ github.event.inputs.version || github.ref_name }}-Android-arm64.apk
+        cp build/app/outputs/bundle/release/app-release.aab release/TraceWallet-v${{ github.event.inputs.version || github.ref_name }}-Android.aab
+
+    # Create Release
+    - name: Create Release
+      uses: softprops/action-gh-release@v2
+      with:
+        name: "Trace Wallet ${{ github.event.inputs.version || github.ref_name }}"
+        body_path: RELEASE_NOTES.md
+        files: |
+          release/VaultAnalytics-v${{ github.event.inputs.version || github.ref_name }}-Windows.exe
+          release/TraceWallet-v${{ github.event.inputs.version || github.ref_name }}-Android-arm64.apk
+          release/TraceWallet-v${{ github.event.inputs.version || github.ref_name }}-Android.aab
+        draft: false
+        prerelease: false
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
