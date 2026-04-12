@@ -62,12 +62,17 @@ python main.py
 ### Building Desktop Executable
 
 ```bash
-# Install PyInstaller
 pip install pyinstaller
-
-# Build executable
-pyinstaller --onefile --windowed --add-data "index.html;." --name "VaultAnalytics" main.py
+pyinstaller VaultAnalytics.spec
 ```
+
+The built `dist/VaultAnalytics.exe` bundles `index.html` and the `vault` package. When you run the **frozen** executable, vault data and settings are stored under `%LOCALAPPDATA%\TraceWallet\VaultAnalytics\` on Windows (and the equivalent app-data folder on macOS/Linux). Development runs keep `vault_data.json` and `vault_config.json` in the `vault_analytics` folder.
+
+### Flutter (local SDK path on Windows)
+
+If `flutter` is not on your `PATH`, call it explicitly, for example:
+
+`C:\path\to\flutter\bin\flutter.bat pub get`
 
 ## P2P Mobile Sync Setup
 

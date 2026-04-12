@@ -1,13 +1,33 @@
 import hashlib
 import os
+import sys
 import json
 import logging
 from datetime import datetime, timedelta
 
 
-DATA_FILE = "vault_data.json"
-CONFIG_FILE = "vault_config.json"
-STAGING_FILE = "staging_vault.json"
+def _app_data_dir() -> str:
+    """
+    Directory for vault JSON files. PyInstaller builds use a real user data path;
+    development uses the vault_analytics folder (parent of the vault package).
+    """
+    if getattr(sys, "frozen", False):
+        if sys.platform == "win32":
+            base = os.environ.get("LOCALAPPDATA") or os.environ.get("APPDATA") or os.path.expanduser("~")
+        elif sys.platform == "darwin":
+            base = os.path.join(os.path.expanduser("~"), "Library", "Application Support")
+        else:
+            base = os.environ.get("XDG_DATA_HOME", os.path.join(os.path.expanduser("~"), ".local", "share"))
+        d = os.path.join(base, "TraceWallet", "VaultAnalytics")
+        os.makedirs(d, exist_ok=True)
+        return d
+    return os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+
+
+_DATA = _app_data_dir()
+DATA_FILE = os.path.join(_DATA, "vault_data.json")
+CONFIG_FILE = os.path.join(_DATA, "vault_config.json")
+STAGING_FILE = os.path.join(_DATA, "staging_vault.json")
 
 DEFAULT_SETTINGS = {
     "onboarding_completed": False,

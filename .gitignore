@@ -49,5 +49,9 @@ venv/
 .venv/
 __pycache__/
 vault_analytics/vault_data.json
+vault_analytics/vault_config.json
+vault_analytics/staging_vault.json
 vault_analytics/pip_error.log
+vault_analytics/build/
+vault_analytics/dist/
 

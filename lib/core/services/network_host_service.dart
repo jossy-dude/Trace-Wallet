@@ -40,11 +40,10 @@ class NetworkHostService {
       print('Vault Server successfully activated on: ${_server!.address.address}:${_server!.port}');
     } catch (e) {
       if (e.toString().contains('Address already in use')) {
-        print('CRITICAL ERROR: Port 8080 is already occupied. Close other instances or firewall blockers.');
+        print('Port 8080 is already in use; sync server not started.');
       } else {
-        print('FAILED to start Vault Server: $e');
+        print('Vault sync server failed to start: $e');
       }
-      rethrow;
     }
   }
 

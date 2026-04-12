@@ -48,7 +48,7 @@ class VaultPro:
         self._init_batch()
 
     def set_window(self, window):
-        self._window = window
+        self.window = window
 
     # ─── Settings Management ──────────────────────────────
 

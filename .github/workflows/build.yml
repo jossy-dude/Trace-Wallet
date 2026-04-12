@@ -64,8 +64,8 @@ jobs:
     - name: Set up Flutter
       uses: subosito/flutter-action@v2
       with:
-        flutter-version: '3.41.6'
-        channel: 'stable'
+        channel: stable
+        cache: true
 
     - name: Clean build environment
       run: flutter clean

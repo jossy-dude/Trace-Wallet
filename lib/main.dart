@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'core/services/database_service.dart';
 import 'core/services/sms_service.dart';
@@ -18,9 +19,14 @@ void main() async {
     await SmsService().init();
   }
   
-  // Start Sync Server (Windows)
+  // Start Sync Server (Windows Flutter build only; do not crash if port is busy)
   if (Platform.isWindows) {
-    await NetworkHostService().startServer();
+    try {
+      await NetworkHostService().startServer();
+    } catch (e, st) {
+      debugPrint('NetworkHostService failed to start: $e');
+      debugPrint('$st');
+    }
   }
   
   runApp(const VaultIntegrityApp());
