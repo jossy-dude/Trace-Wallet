@@ -34,8 +34,30 @@ Then set (PowerShell — adjust the path if your SDK is elsewhere):
 
 ```powershell
 $env:ANDROID_HOME = "$env:LOCALAPPDATA\Android\Sdk"
+$env:ANDROID_SDK_ROOT = $env:ANDROID_HOME
 $env:Path += ";$env:ANDROID_HOME\platform-tools"
 ```
+
+### Install packages with `sdkmanager` (no Android Studio UI)
+
+After you unzip Google’s **command line tools** zip, the layout must be:
+
+`<SDK>\cmdline-tools\latest\bin\sdkmanager.bat`  
+
+If your zip unpacks to `...\cmdline-tools\bin\` directly, move that whole tree to `%LOCALAPPDATA%\Android\Sdk\cmdline-tools\latest\`.
+
+Accept licenses, then install components (Flutter 3.41+ may require **Android SDK 36** — check `flutter doctor -v`):
+
+```powershell
+$SDK = "$env:LOCALAPPDATA\Android\Sdk"
+$sm = "$SDK\cmdline-tools\latest\bin\sdkmanager.bat"
+1..80 | ForEach-Object { 'y' } | & $sm --sdk_root=$SDK --licenses
+& $sm --sdk_root=$SDK "platform-tools" "platforms;android-36" "build-tools;36.1.0"
+```
+
+Do **not** pass `"cmdline-tools;latest"` to `sdkmanager` if you already copied tools into `cmdline-tools\latest` manually (it can create a duplicate `latest-2` folder and warnings).
+
+If a download fails with **ZLIB** errors, delete the broken folder under `platforms\` or `build-tools\` and run `sdkmanager` again for that package.
 
 After installing platforms/build-tools, run:
 
