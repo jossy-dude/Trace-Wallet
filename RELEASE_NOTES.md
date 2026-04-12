@@ -1,3 +1,11 @@
+# Trace Wallet v1.1.2
+
+## CI / GitHub Releases (v1.1.2)
+
+- **GitHub Actions:** The Android job was copying the arm64 split APK from the wrong folder (`apk/release/`). Flutter writes those files under `flutter-apk/`, so the step failed, **`publish-release` never ran**, and nothing appeared on the Releases page. The workflow now uses the correct path (with a fallback) and explicit release asset paths.
+
+---
+
 # Trace Wallet v1.1.1
 
 ## Fixes (v1.1.1)
