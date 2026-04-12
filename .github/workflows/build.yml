@@ -29,7 +29,14 @@ jobs:
     - name: Build Windows executable
       run: |
         cd vault_analytics
-        pyinstaller --name=VaultAnalytics --onefile --windowed --add-data="index.html;." --add-data="vault;vault" --hidden-import=requests --hidden-import=urllib3 --hidden-import=charset_normalizer --hidden-import=idna --hidden-import=certifi --hidden-import=packaging --hidden-import=packaging.version --hidden-import=packaging.specifiers --hidden-import=packaging.requirements main.py
+        pyinstaller --name=VaultAnalytics --onefile --windowed --add-data="index.html;." --add-data="vault;vault" --hidden-import=requests --hidden-import=urllib3 --hidden-import=charset_normalizer --hidden-import=idna --hidden-import=certifi --hidden-import=packaging --hidden-import=packaging.version --hidden-import=packaging.specifiers --hidden-import=packaging.requirements main.py 2>&1 | tee build.log
+
+    - name: Upload build logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: Windows-Build-Logs
+        path: vault_analytics/build.log
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
@@ -60,14 +67,26 @@ jobs:
         flutter-version: '3.41.6'
         channel: 'stable'
 
+    - name: Clean build environment
+      run: flutter clean
+
     - name: Get dependencies
       run: flutter pub get
 
     - name: Build APK
-      run: flutter build apk --release --verbose
+      run: flutter build apk --release --verbose --no-shrink 2>&1 | tee build_apk.log
 
     - name: Build App Bundle
-      run: flutter build appbundle --release --verbose
+      run: flutter build appbundle --release --verbose --no-shrink 2>&1 | tee build_aab.log
+
+    - name: Upload build logs
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: Android-Build-Logs
+        path: |
+          build_apk.log
+          build_aab.log
 
     - name: Upload Android artifacts
       uses: actions/upload-artifact@v4
