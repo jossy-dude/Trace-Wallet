@@ -55,3 +55,17 @@ vault_analytics/pip_error.log
 vault_analytics/build/
 vault_analytics/dist/
 
+# Node.js / Electron / React
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+vault_pro/node_modules/
+vault_pro/dist/
+vault_pro/dist-electron/
+vault_pro/.vite/
+vault_pro/.electron/
+vault_pro/vault_data.json
+vault_pro/vault_config.json
+
