@@ -1,3 +1,15 @@
+# Trace Wallet v1.1.1
+
+## Fixes (v1.1.1)
+
+- **Windows desktop (VaultAnalytics.exe):** Load `index.html` via a `file://` URL so the PyWebView window works when packaged; store `vault_data.json` / `vault_config.json` under the OS app-data folder instead of the exe directory.
+- **Python API:** `set_window` now assigns `self.window` so minimize / fullscreen / close and file dialogs work.
+- **Flutter:** Declare `shelf` and `shelf_router`; avoid crashing the Windows app when the sync server cannot bind to port 8080.
+- **CI / releases:** Build the Windows executable on `windows-latest`, build Android on Ubuntu, and attach universal plus arm64-v8a APKs and the AAB to GitHub Releases.
+- **Repository:** Stop tracking PyInstaller `build/` and `dist/` artifacts; disable UPX in the spec for more reliable Windows binaries.
+
+---
+
 # Trace Wallet v1.1.0 Release Notes
 
 ## 🎉 Major Release: P2P Infrastructure & Mobile Sync
