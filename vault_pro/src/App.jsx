@@ -17,10 +17,13 @@ import Transactions from './components/Transactions';
 import People from './components/People';
 import Sync from './components/Sync';
 import Settings from './components/Settings';
+import ToastContainer from './components/ToastContainer';
+import useToast from './hooks/useToast';
 
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [notifications, setNotifications] = useState([]);
+  const { toasts, removeToast, success, error, warning, info } = useToast();
 
   const navItems = [
     { path: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -105,13 +108,16 @@ function App() {
           {/* Page Content */}
           <div className="flex-1 overflow-auto p-6">
             <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/transactions" element={<Transactions />} />
-              <Route path="/people" element={<People />} />
-              <Route path="/sync" element={<Sync />} />
-              <Route path="/settings" element={<Settings />} />
+              <Route path="/" element={<Dashboard toast={{ success, error, warning, info }} />} />
+              <Route path="/transactions" element={<Transactions toast={{ success, error, warning, info }} />} />
+              <Route path="/people" element={<People toast={{ success, error, warning, info }} />} />
+              <Route path="/sync" element={<Sync toast={{ success, error, warning, info }} />} />
+              <Route path="/settings" element={<Settings toast={{ success, error, warning, info }} />} />
             </Routes>
           </div>
+          
+          {/* Toast Notifications */}
+          <ToastContainer toasts={toasts} removeToast={removeToast} />
         </main>
       </div>
     </Router>
