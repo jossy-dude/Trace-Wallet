@@ -48,39 +48,78 @@ class Sidecar:
         return [t.to_dict() for t in transactions]
     
     def add_transaction(self, data):
-        """Add a new transaction"""
+        """Add a new transaction with validation"""
+        if not isinstance(data, dict):
+            raise ValueError("Transaction data must be an object")
+        
+        # Validate required fields
+        if data.get('amount') is None:
+            raise ValueError("Amount is required")
+        
+        try:
+            amount = float(data.get('amount'))
+        except (ValueError, TypeError):
+            raise ValueError("Amount must be a valid number")
+        
+        # Set default date if not provided
+        date = data.get('date')
+        if not date:
+            from datetime import datetime
+            date = datetime.now().isoformat()
+        
         transaction = VaultTransaction(
             raw_text=data.get('raw_text', ''),
-            amount=data.get('amount'),
-            balance=data.get('balance'),
-            fee=data.get('fee'),
-            date=data.get('date'),
+            amount=amount,
+            balance=float(data['balance']) if data.get('balance') is not None else None,
+            fee=float(data['fee']) if data.get('fee') is not None else None,
+            date=date,
             sender_alias=data.get('sender_alias'),
-            category=data.get('category'),
-            is_approved=data.get('is_approved', False)
+            category=data.get('category', 'Other'),
+            is_approved=bool(data.get('is_approved', False))
         )
         tx_id = db.add_transaction(transaction)
         return {'id': tx_id, 'status': 'success'}
     
     def update_transaction(self, data):
-        """Update an existing transaction"""
+        """Update an existing transaction with validation"""
+        if not isinstance(data, dict):
+            raise ValueError("Transaction data must be an object")
+        
+        tx_id = data.get('id')
+        if not tx_id:
+            raise ValueError("Transaction ID is required for update")
+        
+        # Validate amount if provided
+        amount = data.get('amount')
+        if amount is not None:
+            try:
+                amount = float(amount)
+            except (ValueError, TypeError):
+                raise ValueError("Amount must be a valid number")
+        
         transaction = VaultTransaction(
-            id=data.get('id'),
+            id=int(tx_id),
             raw_text=data.get('raw_text', ''),
-            amount=data.get('amount'),
-            balance=data.get('balance'),
-            fee=data.get('fee'),
-            date=data.get('date'),
+            amount=amount,
+            balance=float(data['balance']) if data.get('balance') is not None else None,
+            fee=float(data['fee']) if data.get('fee') is not None else None,
+            date=data.get('date', ''),
             sender_alias=data.get('sender_alias'),
-            category=data.get('category'),
-            is_approved=data.get('is_approved', False)
+            category=data.get('category', 'Other'),
+            is_approved=bool(data.get('is_approved', False))
         )
         success = db.update_transaction(transaction)
         return {'success': success}
     
     def delete_transaction(self, transaction_id):
         """Delete a transaction"""
-        success = db.delete_transaction(transaction_id)
+        if not transaction_id:
+            raise ValueError("Transaction ID is required")
+        try:
+            tx_id = int(transaction_id)
+        except (ValueError, TypeError):
+            raise ValueError("Invalid transaction ID")
+        success = db.delete_transaction(tx_id)
         return {'success': success}
     
     def search_transactions(self, query):
@@ -94,29 +133,77 @@ class Sidecar:
         return [p.to_dict() for p in people]
     
     def add_person(self, data):
-        """Add a new person"""
+        """Add a new person with validation"""
+        if not isinstance(data, dict):
+            raise ValueError("Person data must be an object")
+        
+        name = data.get('name', '').strip()
+        if not name:
+            raise ValueError("Person name is required")
+        
+        aliases = data.get('aliases', [])
+        if isinstance(aliases, str):
+            aliases = [a.strip() for a in aliases.split(',') if a.strip()]
+        elif not isinstance(aliases, list):
+            aliases = []
+        
+        monthly_fee = data.get('monthly_fee', 0.0)
+        try:
+            monthly_fee = float(monthly_fee) if monthly_fee else 0.0
+        except (ValueError, TypeError):
+            monthly_fee = 0.0
+        
         person = VaultPerson(
-            name=data.get('name', ''),
-            aliases=data.get('aliases', []),
-            monthly_fee=data.get('monthly_fee', 0.0)
+            name=name,
+            aliases=aliases,
+            monthly_fee=monthly_fee
         )
         person_id = db.add_person(person)
         return {'id': person_id, 'status': 'success'}
     
     def update_person(self, data):
-        """Update a person"""
+        """Update a person with validation"""
+        if not isinstance(data, dict):
+            raise ValueError("Person data must be an object")
+        
+        person_id = data.get('id')
+        if not person_id:
+            raise ValueError("Person ID is required for update")
+        
+        name = data.get('name', '').strip()
+        if not name:
+            raise ValueError("Person name is required")
+        
+        aliases = data.get('aliases', [])
+        if isinstance(aliases, str):
+            aliases = [a.strip() for a in aliases.split(',') if a.strip()]
+        elif not isinstance(aliases, list):
+            aliases = []
+        
+        monthly_fee = data.get('monthly_fee', 0.0)
+        try:
+            monthly_fee = float(monthly_fee) if monthly_fee else 0.0
+        except (ValueError, TypeError):
+            monthly_fee = 0.0
+        
         person = VaultPerson(
-            id=data.get('id'),
-            name=data.get('name', ''),
-            aliases=data.get('aliases', []),
-            monthly_fee=data.get('monthly_fee', 0.0)
+            id=int(person_id),
+            name=name,
+            aliases=aliases,
+            monthly_fee=monthly_fee
         )
         success = db.update_person(person)
         return {'success': success}
     
     def delete_person(self, person_id):
         """Delete a person"""
-        success = db.delete_person(person_id)
+        if not person_id:
+            raise ValueError("Person ID is required")
+        try:
+            p_id = int(person_id)
+        except (ValueError, TypeError):
+            raise ValueError("Invalid person ID")
+        success = db.delete_person(p_id)
         return {'success': success}
     
     def find_person_by_alias(self, alias):
@@ -138,13 +225,17 @@ class Sidecar:
     
     def export_data(self, filepath):
         """Export all data to JSON"""
-        db.export_to_json(filepath)
-        return {'success': True, 'path': filepath}
+        if not filepath:
+            raise ValueError("File path is required")
+        success = db.export_to_json(filepath)
+        return {'success': success, 'path': filepath if success else None}
     
     def import_data(self, filepath):
         """Import data from JSON"""
-        db.import_from_json(filepath)
-        return {'success': True}
+        if not filepath:
+            raise ValueError("File path is required")
+        result = db.import_from_json(filepath)
+        return {'success': len(result.get('errors', [])) == 0, 'details': result}
 
 
 # Global sidecar instance

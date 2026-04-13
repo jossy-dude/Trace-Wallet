@@ -103,33 +103,58 @@ const Transactions = () => {
     setFilteredTransactions(filtered);
   }, [searchTerm, filterStatus, transactions]);
 
+  const validateTransaction = (data) => {
+    const errors = [];
+    if (!data.amount || isNaN(parseFloat(data.amount))) {
+      errors.push('Valid amount is required');
+    }
+    if (!data.date) {
+      errors.push('Date is required');
+    }
+    return errors;
+  };
+
   const handleAddTransaction = async () => {
+    const validationErrors = validateTransaction(formData);
+    if (validationErrors.length > 0) {
+      alert('Please fix the following errors:\n' + validationErrors.join('\n'));
+      return;
+    }
+
     const payload = {
-      ...formData,
-      amount: parseFloat(formData.amount) || 0,
-      balance: parseFloat(formData.balance) || null,
-      fee: parseFloat(formData.fee) || null,
-      raw_text: formData.rawText, // Match Python field name if different
-      sender_alias: formData.senderAlias, // Match Python field name
-      is_approved: formData.isApproved, // Match Python field name
+      raw_text: formData.rawText.trim(),
+      amount: parseFloat(formData.amount),
+      balance: formData.balance ? parseFloat(formData.balance) : null,
+      fee: formData.fee ? parseFloat(formData.fee) : null,
+      date: formData.date,
+      sender_alias: formData.senderAlias.trim() || null,
+      category: formData.category,
+      is_approved: formData.isApproved,
     };
     
-    if (window.electronAPI) {
-      const response = await window.electronAPI.addTransaction(payload);
-      if (response && response.success) {
-        fetchTransactions();
+    try {
+      if (window.electronAPI) {
+        const response = await window.electronAPI.addTransaction(payload);
+        if (response && response.success) {
+          fetchTransactions();
+          setShowAddModal(false);
+          resetForm();
+        } else {
+          alert('Failed to add transaction: ' + (response?.error || 'Unknown error'));
+        }
+      } else {
+        const newTransaction = {
+          id: Date.now(),
+          ...payload,
+          dateAdded: new Date().toISOString()
+        };
+        setTransactions([newTransaction, ...transactions]);
         setShowAddModal(false);
         resetForm();
       }
-    } else {
-      const newTransaction = {
-        id: Date.now(),
-        ...payload,
-        dateAdded: new Date().toISOString()
-      };
-      setTransactions([newTransaction, ...transactions]);
-      setShowAddModal(false);
-      resetForm();
+    } catch (error) {
+      console.error('Error adding transaction:', error);
+      alert('Error adding transaction: ' + error.message);
     }
   };
 
@@ -147,29 +172,56 @@ const Transactions = () => {
   };
 
   const handleUpdateTransaction = async () => {
-    if (window.electronAPI) {
-      const response = await window.electronAPI.updateTransaction(editingTransaction);
-      if (response && response.success) {
-        fetchTransactions();
+    if (!editingTransaction || !editingTransaction.id) {
+      alert('Invalid transaction data');
+      return;
+    }
+
+    try {
+      // Normalize field names for backend
+      const payload = {
+        ...editingTransaction,
+        raw_text: editingTransaction.rawText || editingTransaction.raw_text,
+        sender_alias: editingTransaction.senderAlias || editingTransaction.sender_alias,
+        is_approved: editingTransaction.isApproved ?? editingTransaction.is_approved ?? false,
+      };
+
+      if (window.electronAPI) {
+        const response = await window.electronAPI.updateTransaction(payload);
+        if (response && response.success) {
+          fetchTransactions();
+          setEditingTransaction(null);
+        } else {
+          alert('Failed to update transaction: ' + (response?.error || 'Unknown error'));
+        }
+      } else {
+        setTransactions(transactions.map(tx => 
+          tx.id === editingTransaction.id ? { ...editingTransaction } : tx
+        ));
         setEditingTransaction(null);
       }
-    } else {
-      setTransactions(transactions.map(tx => 
-        tx.id === editingTransaction.id ? { ...editingTransaction } : tx
-      ));
-      setEditingTransaction(null);
+    } catch (error) {
+      console.error('Error updating transaction:', error);
+      alert('Error updating transaction: ' + error.message);
     }
   };
 
   const handleDeleteTransaction = async (id) => {
     if (window.confirm('Are you sure you want to delete this transaction?')) {
-      if (window.electronAPI) {
-        const response = await window.electronAPI.deleteTransaction(id);
-        if (response && response.success) {
-          fetchTransactions();
+      try {
+        if (window.electronAPI) {
+          const response = await window.electronAPI.deleteTransaction(id);
+          if (response && response.success) {
+            fetchTransactions();
+          } else {
+            alert('Failed to delete transaction: ' + (response?.error || 'Unknown error'));
+          }
+        } else {
+          setTransactions(transactions.filter(tx => tx.id !== id));
         }
-      } else {
-        setTransactions(transactions.filter(tx => tx.id !== id));
+      } catch (error) {
+        console.error('Error deleting transaction:', error);
+        alert('Error deleting transaction: ' + error.message);
       }
     }
   };
@@ -178,17 +230,30 @@ const Transactions = () => {
     const txToApprove = transactions.find(t => t.id === id);
     if (!txToApprove) return;
 
-    const updatedTx = { ...txToApprove, is_approved: true };
+    // Normalize for backend
+    const updatedTx = { 
+      ...txToApprove, 
+      is_approved: true,
+      raw_text: txToApprove.rawText || txToApprove.raw_text || '',
+      sender_alias: txToApprove.senderAlias || txToApprove.sender_alias || null
+    };
     
-    if (window.electronAPI) {
-      const response = await window.electronAPI.updateTransaction(updatedTx);
-      if (response && response.success) {
-        fetchTransactions();
+    try {
+      if (window.electronAPI) {
+        const response = await window.electronAPI.updateTransaction(updatedTx);
+        if (response && response.success) {
+          fetchTransactions();
+        } else {
+          alert('Failed to approve transaction: ' + (response?.error || 'Unknown error'));
+        }
+      } else {
+        setTransactions(transactions.map(tx => 
+          tx.id === id ? { ...tx, isApproved: true } : tx
+        ));
       }
-    } else {
-      setTransactions(transactions.map(tx => 
-        tx.id === id ? { ...tx, isApproved: true } : tx
-      ));
+    } catch (error) {
+      console.error('Error approving transaction:', error);
+      alert('Error approving transaction: ' + error.message);
     }
   };
 

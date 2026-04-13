@@ -32,7 +32,14 @@ const People = () => {
       if (window.electronAPI) {
         const response = await window.electronAPI.getPeople();
         if (response && response.success) {
-          setPeople(response.data || []);
+          // Normalize monthly_fee to monthlyFee for frontend consistency
+          const normalizedPeople = (response.data || []).map(p => ({
+            ...p,
+            monthlyFee: p.monthly_fee ?? p.monthlyFee ?? 0,
+            totalTransactions: p.total_transactions ?? p.totalTransactions ?? 0,
+            totalAmount: p.total_amount ?? p.totalAmount ?? 0
+          }));
+          setPeople(normalizedPeople);
         }
       } else {
         const samplePeople = [
@@ -49,6 +56,7 @@ const People = () => {
       }
     } catch (error) {
       console.error('Failed to fetch people:', error);
+      alert('Failed to load people data. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -177,7 +185,7 @@ const People = () => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-slate-100">{person.name}</h3>
-                  <p className="text-sm text-slate-500">{person.totalTransactions} transactions</p>
+                  <p className="text-sm text-slate-500">{(person.totalTransactions || 0)} transactions</p>
                 </div>
               </div>
               <div className="flex gap-1">
@@ -221,13 +229,13 @@ const People = () => {
                   <Wallet className="w-4 h-4 text-slate-500" />
                   <span className="text-sm text-slate-400">Monthly Fee:</span>
                   <span className="text-sm font-medium text-slate-200">
-                    ETB {person.monthlyFee.toFixed(2)}
+                    ETB {(person.monthlyFee || 0).toFixed(2)}
                   </span>
                 </div>
                 <div className="text-right">
                   <p className="text-xs text-slate-500">Total Volume</p>
                   <p className="text-sm font-semibold text-vault-400">
-                    ETB {person.totalAmount.toLocaleString()}
+                    ETB {(person.totalAmount || 0).toLocaleString()}
                   </p>
                 </div>
               </div>
@@ -362,7 +370,7 @@ const People = () => {
                 </div>
                 <div>
                   <h3 className="text-xl font-bold text-slate-100">{selectedPerson.name}</h3>
-                  <p className="text-sm text-slate-500">{selectedPerson.totalTransactions} transactions</p>
+                  <p className="text-sm text-slate-500">{(selectedPerson.totalTransactions || 0)} transactions</p>
                 </div>
               </div>
               <button 

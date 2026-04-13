@@ -8,12 +8,18 @@ from datetime import datetime, timedelta
 from typing import List, Dict, Any, Optional
 from dataclasses import asdict
 from pathlib import Path
+from collections import defaultdict
 
 from aiohttp import web
 import aiohttp_cors
 
 from database import db, VaultTransaction, VaultPerson, PairedDevice
 from parser import parser
+
+# Rate limiting storage
+request_history = defaultdict(list)
+RATE_LIMIT_WINDOW = 60  # seconds
+RATE_LIMIT_MAX = 100    # requests per window
 
 class SyncServer:
     """HTTP server for handling sync requests"""
@@ -26,13 +32,14 @@ class SyncServer:
         self.last_sync_time: Optional[datetime] = None
         self.sync_cooldown = timedelta(minutes=10)
         
-        # Setup CORS
+        # Setup CORS - more restrictive for security
         cors = aiohttp_cors.setup(self.app, defaults={
             "*": aiohttp_cors.ResourceOptions(
                 allow_credentials=True,
-                expose_headers="*",
-                allow_headers="*",
-                allow_methods="*"
+                expose_headers="X-Vault-Version",
+                allow_headers=["Content-Type", "X-Vault-Token", "X-Vault-Device-ID"],
+                allow_methods=["GET", "POST", "OPTIONS"],
+                max_age=3600
             )
         })
         
@@ -65,7 +72,7 @@ class SyncServer:
             'status': 'healthy',
             'timestamp': datetime.now().isoformat(),
             'version': '1.0.0'
-        })
+        }, headers={'X-Vault-Version': '1.0.0'})
     
     async def sync_transactions(self, request: web.Request) -> web.Response:
         """Handle transaction sync from mobile"""
