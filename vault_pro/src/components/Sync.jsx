@@ -9,7 +9,6 @@ import {
   Wifi,
   WifiOff,
   Server,
-  Mobile,
   Link,
   Unlink,
   Send,
@@ -202,7 +201,7 @@ const Sync = ({ toast }) => {
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-12 h-12 rounded-xl bg-vault-500/20 flex items-center justify-center">
-                <Mobile className="w-6 h-6 text-vault-400" />
+                <Smartphone className="w-6 h-6 text-vault-400" />
               </div>
               <div>
                 <p className="text-sm text-slate-400">Discovered Devices</p>
