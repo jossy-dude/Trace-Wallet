@@ -1,6 +1,49 @@
-# Trace Wallet v1.1.2
+# Vault Pro v1.2.0
 
-## CI / GitHub Releases (v1.1.2)
+## Major Changes in v1.2.0
+
+- **Removed Flutter**: Migrated to React-based PWA for mobile, eliminating Android Studio dependency
+- **Deleted vault_analytics**: Consolidated to single Electron + React architecture
+- **Added UDP Discovery**: Syncthing-style device discovery on local network (port 5333)
+- **Enhanced Error Handling**: Graceful degradation when services are unavailable
+- **Python Bundling**: PyInstaller integration for standalone desktop apps
+- **SQLite Only**: Removed all JSON file storage, unified on SQLite database
+- **FastAPI Backend**: Lightweight async API server (replaced aiohttp)
+- **Toast Notifications**: User feedback system for all actions
+- **Loading States**: Skeleton screens during async operations
+- **CSV Export**: Download transactions for backup/analysis
+- **Sync Component**: Real-time device discovery and pairing UI
+
+---
+
+## Architecture Summary
+
+### Desktop (Windows/macOS/Linux)
+- **Frontend**: React 18 + Vite + Tailwind CSS
+- **Desktop Shell**: Electron
+- **Backend**: FastAPI + SQLite
+- **Discovery**: UDP broadcast (Syncthing-style)
+- **Bundle Size**: ~50MB (with Python bundled)
+
+### Mobile (Coming Soon - React + Capacitor)
+- **Framework**: React + Capacitor (NO Android Studio required)
+- **SMS Access**: Capacitor SMS plugin
+- **Build**: CLI-only (gradle command-line)
+- **Same Codebase**: Reuse React components from desktop
+
+### Why NOT Django?
+For your 1-2 user use case, FastAPI is better because:
+- **5x Faster** than Django (async native)
+- **10x Lighter** (5MB vs 50MB+)
+- **Simpler** (no migrations, ORM overhead)
+- **Still Scalable** (can handle 10k+ requests/sec)
+- **Perfect for Local Sync** (HTTP APIs, low latency)
+
+Django would be overkill and slow for your needs.
+
+---
+
+# Trace Wallet v1.1.2 (Archived)
 
 - **GitHub Actions:** The Android job was copying the arm64 split APK from the wrong folder (`apk/release/`). Flutter writes those files under `flutter-apk/`, so the step failed, **`publish-release` never ran**, and nothing appeared on the Releases page. The workflow now uses the correct path (with a fallback) and explicit release asset paths.
 
