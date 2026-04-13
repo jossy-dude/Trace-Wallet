@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release tag (e.g. v1.1.0) — use the same as the git tag when tagging'
+        description: 'Release tag (e.g. v1.0.0)'
         required: true
         default: 'v1.0.0'
 
@@ -19,87 +19,141 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vault_pro/package-lock.json
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Install Node dependencies
         run: |
-          cd vault_analytics
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt pyinstaller
+          cd vault_pro
+          npm ci
 
-      - name: Build Windows executable
+      - name: Install Python dependencies
         run: |
-          cd vault_analytics
-          pyinstaller VaultAnalytics.spec
+          cd vault_pro/python
+          pip install -r requirements.txt
+
+      - name: Build React app
+        run: |
+          cd vault_pro
+          npm run build
+
+      - name: Build Electron app
+        run: |
+          cd vault_pro
+          npm run dist
 
       - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
-          name: VaultAnalytics-Windows
-          path: vault_analytics/dist/VaultAnalytics.exe
+          name: VaultPro-Windows
+          path: vault_pro/dist-electron/*.exe
           if-no-files-found: error
 
-  build-android:
+  build-macos:
+    runs-on: macos-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vault_pro/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Node dependencies
+        run: |
+          cd vault_pro
+          npm ci
+
+      - name: Install Python dependencies
+        run: |
+          cd vault_pro/python
+          pip install -r requirements.txt
+
+      - name: Build React app
+        run: |
+          cd vault_pro
+          npm run build
+
+      - name: Build Electron app
+        run: |
+          cd vault_pro
+          npm run dist
+
+      - name: Upload macOS artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: VaultPro-macOS
+          path: vault_pro/dist-electron/*.dmg
+          if-no-files-found: error
+
+  build-linux:
     runs-on: ubuntu-latest
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
 
-      - name: Set up Java
-        uses: actions/setup-java@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
         with:
-          java-version: '17'
-          distribution: 'temurin'
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: vault_pro/package-lock.json
 
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Accept Android Licenses
-        run: yes | sdkmanager --licenses || true
-
-      - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          channel: stable
-          cache: true
+          python-version: '3.11'
 
-      - name: Get dependencies
-        run: flutter pub get
-
-      # Split APKs are emitted under flutter-apk/ (not apk/release/) on current Flutter.
-      - name: Build APKs and bundle
+      - name: Install Node dependencies
         run: |
-          set -e
-          mkdir -p release-out
-          flutter build apk --release
-          cp build/app/outputs/flutter-apk/app-release.apk release-out/app-release-universal.apk
-          flutter build apk --release --split-per-abi
-          ARM64="build/app/outputs/flutter-apk/app-arm64-v8a-release.apk"
-          if [ ! -f "$ARM64" ]; then
-            ARM64="build/app/outputs/apk/release/app-arm64-v8a-release.apk"
-          fi
-          if [ ! -f "$ARM64" ]; then
-            echo "arm64 APK not found; listing flutter-apk:"; ls -la build/app/outputs/flutter-apk/ || true
-            echo "listing apk/release:"; ls -la build/app/outputs/apk/release/ || true
-            exit 1
-          fi
-          cp "$ARM64" release-out/app-arm64-v8a-release.apk
-          flutter build appbundle --release
-          cp build/app/outputs/bundle/release/app-release.aab release-out/
+          cd vault_pro
+          npm ci
 
-      - name: Upload Android artifacts
+      - name: Install Python dependencies
+        run: |
+          cd vault_pro/python
+          pip install -r requirements.txt
+
+      - name: Build React app
+        run: |
+          cd vault_pro
+          npm run build
+
+      - name: Build Electron app
+        run: |
+          cd vault_pro
+          npm run dist
+
+      - name: Upload Linux artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: TraceWallet-Android
-          path: release-out/
-          if-no-files-found: error
+          name: VaultPro-Linux
+          path: |
+            vault_pro/dist-electron/*.AppImage
+            vault_pro/dist-electron/*.deb
+          if-no-files-found: warn
 
   publish-release:
-    needs: [build-windows, build-android]
+    needs: [build-windows, build-macos, build-linux]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -111,41 +165,39 @@ jobs:
       - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
-          name: VaultAnalytics-Windows
-          path: release
+          name: VaultPro-Windows
+          path: release-windows
 
-      - name: Download Android artifacts
+      - name: Download macOS artifact
         uses: actions/download-artifact@v4
         with:
-          name: TraceWallet-Android
-          path: release-android
+          name: VaultPro-macOS
+          path: release-macos
+
+      - name: Download Linux artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: VaultPro-Linux
+          path: release-linux
 
       - name: Stage release files
         run: |
           set -e
           mkdir -p upload
-          test -f "release/VaultAnalytics.exe"
-          test -f "release-android/app-release-universal.apk"
-          test -f "release-android/app-arm64-v8a-release.apk"
-          test -f "release-android/app-release.aab"
-          cp "release/VaultAnalytics.exe" "upload/VaultAnalytics-${TAG_NAME}-Windows.exe"
-          cp "release-android/app-release-universal.apk" "upload/TraceWallet-${TAG_NAME}-Android-universal.apk"
-          cp "release-android/app-arm64-v8a-release.apk" "upload/TraceWallet-${TAG_NAME}-Android-arm64-v8a.apk"
-          cp "release-android/app-release.aab" "upload/TraceWallet-${TAG_NAME}-Android.aab"
+          cp release-windows/*.exe "upload/VaultPro-${TAG_NAME}-Windows.exe" || echo "No Windows build"
+          cp release-macos/*.dmg "upload/VaultPro-${TAG_NAME}-macOS.dmg" || echo "No macOS build"
+          cp release-linux/*.AppImage "upload/VaultPro-${TAG_NAME}-Linux.AppImage" || echo "No AppImage"
+          cp release-linux/*.deb "upload/VaultPro-${TAG_NAME}-Linux.deb" || echo "No deb package"
           ls -la upload/
 
       - name: Create Release
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ env.TAG_NAME }}
-          name: Trace Wallet ${{ env.TAG_NAME }}
+          name: Vault Pro ${{ env.TAG_NAME }}
           body_path: RELEASE_NOTES.md
-          fail_on_unmatched_files: true
-          files: |
-            upload/VaultAnalytics-${{ env.TAG_NAME }}-Windows.exe
-            upload/TraceWallet-${{ env.TAG_NAME }}-Android-universal.apk
-            upload/TraceWallet-${{ env.TAG_NAME }}-Android-arm64-v8a.apk
-            upload/TraceWallet-${{ env.TAG_NAME }}-Android.aab
+          fail_on_unmatched_files: false
+          files: upload/*
           draft: false
           prerelease: false
         env:

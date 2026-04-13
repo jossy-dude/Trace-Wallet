@@ -1,4 +1,4 @@
-name: Build Apps
+name: Build Vault Pro
 
 env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
@@ -16,82 +16,128 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: vault_pro/package-lock.json
+
     - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
 
-    - name: Install dependencies
+    - name: Install Node dependencies
       run: |
-        cd vault_analytics
-        pip install pywebview fastapi uvicorn pyinstaller
+        cd vault_pro
+        npm ci
 
-    - name: Build Windows executable
+    - name: Install Python dependencies
       run: |
-        cd vault_analytics
-        pyinstaller --name=VaultAnalytics --onefile --windowed --add-data="index.html;." --add-data="vault;vault" --hidden-import=requests --hidden-import=urllib3 --hidden-import=charset_normalizer --hidden-import=idna --hidden-import=certifi --hidden-import=packaging --hidden-import=packaging.version --hidden-import=packaging.specifiers --hidden-import=packaging.requirements main.py 2>&1 | tee build.log
+        cd vault_pro/python
+        pip install -r requirements.txt
 
-    - name: Upload build logs
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: Windows-Build-Logs
-        path: vault_analytics/build.log
+    - name: Build React app
+      run: |
+        cd vault_pro
+        npm run build
+
+    - name: Build Electron app
+      run: |
+        cd vault_pro
+        npm run dist
 
     - name: Upload Windows artifact
       uses: actions/upload-artifact@v4
       with:
-        name: VaultAnalytics-Windows
-        path: vault_analytics/dist/VaultAnalytics.exe
+        name: VaultPro-Windows
+        path: vault_pro/dist-electron/*.exe
 
-  build-android:
+  build-macos:
+    runs-on: macos-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: vault_pro/package-lock.json
+
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Install Node dependencies
+      run: |
+        cd vault_pro
+        npm ci
+
+    - name: Install Python dependencies
+      run: |
+        cd vault_pro/python
+        pip install -r requirements.txt
+
+    - name: Build React app
+      run: |
+        cd vault_pro
+        npm run build
+
+    - name: Build Electron app
+      run: |
+        cd vault_pro
+        npm run dist
+
+    - name: Upload macOS artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: VaultPro-macOS
+        path: vault_pro/dist-electron/*.dmg
+
+  build-linux:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up Java
-      uses: actions/setup-java@v4
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
       with:
-        java-version: '17'
-        distribution: 'temurin'
+        node-version: '20'
+        cache: 'npm'
+        cache-dependency-path: vault_pro/package-lock.json
 
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
-
-    - name: Accept Android Licenses
-      run: yes | sdkmanager --licenses || true
-
-    - name: Set up Flutter
-      uses: subosito/flutter-action@v2
+    - name: Set up Python
+      uses: actions/setup-python@v5
       with:
-        channel: stable
-        cache: true
+        python-version: '3.11'
 
-    - name: Clean build environment
-      run: flutter clean
+    - name: Install Node dependencies
+      run: |
+        cd vault_pro
+        npm ci
 
-    - name: Get dependencies
-      run: flutter pub get
+    - name: Install Python dependencies
+      run: |
+        cd vault_pro/python
+        pip install -r requirements.txt
 
-    - name: Build APK
-      run: flutter build apk --release --verbose --no-shrink 2>&1 | tee build_apk.log
+    - name: Build React app
+      run: |
+        cd vault_pro
+        npm run build
 
-    - name: Build App Bundle
-      run: flutter build appbundle --release --verbose --no-shrink 2>&1 | tee build_aab.log
+    - name: Build Electron app
+      run: |
+        cd vault_pro
+        npm run dist
 
-    - name: Upload build logs
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: Android-Build-Logs
-        path: |
-          build_apk.log
-          build_aab.log
-
-    - name: Upload Android artifacts
+    - name: Upload Linux artifact
       uses: actions/upload-artifact@v4
       with:
-        name: TraceWallet-Android
+        name: VaultPro-Linux
         path: |
-          build/app/outputs/flutter-apk/app-release.apk
-          build/app/outputs/bundle/release/app-release.aab
+          vault_pro/dist-electron/*.AppImage
+          vault_pro/dist-electron/*.deb

@@ -1,117 +1,125 @@
-# Trace Wallet
+# Vault Pro
 
-A secure, LocalSend-style P2P financial tracking system with cross-platform support. Track transactions, analyze spending patterns, and sync SMS-based bank alerts from your mobile device to your desktop vault.
+A secure, modern financial tracking system with cross-platform support. Track transactions, analyze spending patterns, and sync SMS-based bank alerts from your mobile device to your desktop vault.
+
+Built with **React**, **Tailwind CSS**, **Electron**, and **Python**.
 
 ## Features
 
 ### Core Features
 - **Transaction Management** - Track income, expenses, and transfers with intelligent categorization
-- **Financial Analytics** - Net worth tracking, spending velocity, runway calculation, and 6-month predictions
-- **Bank SMS Parsing** - Automatic parsing of Ethiopian bank SMS (CBE, Telebirr, BOA, Dashen)
-- **Goal Tracking** - Set and monitor savings goals with progress tracking
-- **Budget Limits** - Category-based budget enforcement with hard-stop options
-- **AI Insights** - Local Ollama integration for transaction categorization
+- **Financial Analytics** - Net worth tracking, spending analysis, and transaction history
+- **Bank SMS Parsing** - Automatic parsing of Ethiopian bank SMS (CBE, Telebirr, BOA)
+- **People Management** - Manage contacts with aliases for easy transaction tracking
+- **P2P Sync** - Sync transactions between devices on your local network
+- **Data Import/Export** - JSON-based backup and restore functionality
 
-### P2P Mobile Sync (LocalSend-Style)
-- **UDP Discovery** - Auto-discover your desktop vault on local WiFi
-- **QR Code Pairing** - Scan to instantly pair mobile and desktop
-- **Secure Token Authentication** - UUID-based token verification
-- **Device Management** - Track and manage paired devices
-- **Batch SMS Sync** - Send multiple bank SMS messages in one batch
-- **HTTPS Support** - Optional SSL/TLS encryption for local network
+### Desktop Application
+- **Modern UI** - Clean, responsive interface with Tailwind CSS
+- **Local Database** - SQLite storage with zero cloud dependencies
+- **Electron Wrapper** - Native desktop experience across platforms
 
 ## Architecture
 
 ```
-Trace Wallet/
-├── lib/                    # Flutter mobile app (work in progress)
-├── vault_analytics/        # Python desktop application
-│   ├── vault/
-│   │   ├── pipeline/       # SMS processing, P2P server, discovery
-│   │   ├── ui/            # API layer for pywebview
-│   │   ├── core/          # Data transformer
-│   │   ├── ai/            # Ollama integration
-│   │   └── config.py      # Configuration defaults
-│   ├── index.html         # Web UI (glassmorphism design)
-│   └── main.py            # Application entry point
-└── README.md
+vault_pro/
+├── electron/           # Electron main process
+│   ├── main.js        # Entry point
+│   ├── preload.js     # IPC bridge
+│   └── pythonBridge.js # Python communication utility
+├── python/            # Python backend
+│   ├── database.py    # SQLite operations
+│   ├── parser.py      # SMS regex parser
+│   ├── server.py      # HTTP sync server
+│   ├── sidecar.py     # Electron-Python bridge
+│   └── requirements.txt
+├── src/               # React source
+│   ├── components/    # React components
+│   │   ├── Dashboard.jsx
+│   │   ├── Transactions.jsx
+│   │   ├── People.jsx
+│   │   ├── Sync.jsx
+│   │   └── Settings.jsx
+│   ├── App.jsx        # Main app with routing
+│   └── main.jsx       # React entry
+├── package.json       # Node dependencies
+├── vite.config.js     # Vite configuration
+├── tailwind.config.js # Tailwind configuration
+└── index.html         # HTML template
 ```
 
 ## Quick Start
 
-### Desktop Vault (Windows/Linux/Mac)
+### Prerequisites
+- **Node.js 20+** - [Download](https://nodejs.org/)
+- **Python 3.11+** - [Download](https://python.org/)
+
+### Installation
 
 ```bash
-cd vault_analytics
+cd vault_pro
 
-# Create virtual environment
-python -m venv venv
+# Install Node dependencies
+npm install
 
-# Activate (Windows)
-venv\Scripts\activate
-# OR Activate (Linux/Mac)
-source venv/bin/activate
-
-# Install dependencies
+# Install Python dependencies
+cd python
 pip install -r requirements.txt
-
-# Run the application
-python main.py
+cd ..
 ```
 
-### Building Desktop Executable
+### Development
 
 ```bash
-pip install pyinstaller
-pyinstaller VaultAnalytics.spec
+# Start Python sidecar (Terminal 1)
+python python/sidecar.py
+
+# Start React dev server (Terminal 2)
+npm run dev
 ```
 
-The built `dist/VaultAnalytics.exe` bundles `index.html` and the `vault` package. When you run the **frozen** executable, vault data and settings are stored under `%LOCALAPPDATA%\TraceWallet\VaultAnalytics\` on Windows (and the equivalent app-data folder on macOS/Linux). Development runs keep `vault_data.json` and `vault_config.json` in the `vault_analytics` folder.
+App available at `http://localhost:5173`
 
-### Flutter (local SDK path on Windows)
+### Build for Production
 
-If `flutter` is not on your `PATH`, call it explicitly, for example:
+```bash
+# Windows
+build_windows.bat
 
-`C:\path\to\flutter\bin\flutter.bat pub get`
+# Or manually:
+npm run build
+npm run dist
+```
 
 ## P2P Mobile Sync Setup
 
 ### Desktop Setup
-1. Open Vault Settings → P2P Mobile Sync
-2. Click "Open Config" to view QR code and connection details
-3. Enable P2P Server (toggle on)
-4. Note your local IP and port (default: 8765)
+1. Open the app and go to **Sync** page
+2. Enable P2P Server (toggle on)
+3. Note your local IP and port (default: 8765)
+4. Use QR code or manual pairing to connect mobile
 
 ### Mobile App Integration
-Your Flutter app should implement:
 
-```dart
-// 1. UDP Discovery - Listen on port 5333
-RawDatagramSocket.bind(InternetAddress.anyIPv4, 5333)
-  .then((socket) {
-    socket.listen((event) {
-      final datagram = socket.receive();
-      if (datagram != null) {
-        final message = utf8.decode(datagram.data);
-        final config = jsonDecode(message);
-        // config contains: ip, port, token, protocol
-      }
-    });
-  });
+The mobile app (separate project) should implement:
 
-// 2. QR Scanning - Use mobile_scanner package
-// Scan QR to get: {"ip": "192.168.x.x", "port": 8765, "token": "..."}
+```javascript
+// 1. Discover desktop vault via UDP broadcast on port 5333
+// 2. Scan QR code to get connection details
+// 3. Send SMS via HTTP POST
 
-// 3. Send SMS to Vault
-final response = await http.post(
-  Uri.parse('http://192.168.x.x:8765/api/sms'),
-  headers: {'X-Vault-Token': 'your-token'},
-  body: jsonEncode({
-    'body': 'Your bank SMS text here',
-    'sender': 'CBE',
-    'metadata': {'timestamp': DateTime.now().toIso8601String()}
-  }),
-);
+const response = await fetch('http://192.168.x.x:8765/api/sms', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'X-Vault-Token': 'your-token'
+  },
+  body: JSON.stringify({
+    body: 'Your bank SMS text here',
+    sender: 'CBE',
+    metadata: { timestamp: new Date().toISOString() }
+  })
+});
 ```
 
 ## API Endpoints
@@ -119,20 +127,21 @@ final response = await http.post(
 ### Health Check
 ```
 GET /api/health
-Response: {"status": "ok", "version": "4.0", "secure": false}
+Response: {"status": "ok", "version": "1.0"}
 ```
 
 ### Pair Verification
 ```
 GET /api/pair
 Headers: X-Vault-Token: <token>
-Response: {"status": "paired", "device_id": "vault-desktop", ...}
+Response: {"status": "paired", "device_id": "vault-desktop"}
 ```
 
 ### Send SMS
 ```
 POST /api/sms
 Headers: X-Vault-Token: <token>
+Content-Type: application/json
 Body: {"body": "...", "sender": "...", "metadata": {...}}
 ```
 
@@ -140,49 +149,47 @@ Body: {"body": "...", "sender": "...", "metadata": {...}}
 ```
 POST /api/sms/batch
 Headers: X-Vault-Token: <token>
+Content-Type: application/json
 Body: {"messages": [{...}, {...}]}
 ```
 
 ## Configuration
 
-### Default Settings (vault_config.json)
+### Default Settings
+Configuration is stored in `~/.vault_pro/config.json`:
+
 ```json
 {
   "sms_port": 8765,
   "sms_use_https": false,
   "ssl_cert_path": "",
   "ssl_key_path": "",
-  "sms_debounce_seconds": 60,
-  "sms_instant_mode": false
+  "theme": "dark"
 }
 ```
 
-### Enabling HTTPS
-1. Generate SSL certificates:
-   ```bash
-   openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
-   ```
-2. Update settings with certificate paths
-3. Set `sms_use_https: true`
+### Database Location
+- Windows: `%USERPROFILE%\.vault_pro\vault.db`
+- macOS/Linux: `~/.vault_pro/vault.db`
 
 ## Security
 
-- **Local Network Only** - P2P server binds to `0.0.0.0` but intended for LAN use
+- **Local Network Only** - P2P server binds to local network
 - **Token Authentication** - UUID-based tokens for device pairing
-- **Optional HTTPS** - SSL/TLS support for encrypted local communication
 - **No Cloud** - All data stays on your devices
-- **SHA-256 Passwords** - Master password hashing
+- **SQLite Encryption** - Optional SQLCipher support
+
+## Tech Stack
+
+- **Frontend**: React 19, React Router 7, Tailwind CSS 4
+- **Desktop**: Electron 35
+- **Backend**: Python 3.11, aiohttp, SQLite
+- **Build**: Vite 6, electron-builder
+- **Communication**: UDP broadcast, HTTP/HTTPS
 
 ## Screenshots
 
 *Coming soon*
-
-## Tech Stack
-
-- **Desktop**: Python, FastAPI, PyWebView, TailwindCSS
-- **Mobile**: Flutter (in development)
-- **AI**: Ollama (local LLM)
-- **Communication**: UDP broadcast, HTTP/HTTPS
 
 ## Contributing
 
@@ -200,4 +207,4 @@ MIT License - see LICENSE file for details
 
 - Inspired by LocalSend for P2P architecture
 - Ethiopian bank SMS parsing patterns from community contributions
-- Glassmorphism UI design trends
+- Modern UI with Tailwind CSS

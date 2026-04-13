@@ -1,71 +1,55 @@
-# Miscellaneous
-*.class
-*.log
-*.pyc
-*.swp
-.DS_Store
-.atom/
-.build/
-.buildlog/
-.history
-.svn/
-.swiftpm/
-migrate_working_dir/
-
-# IntelliJ related
-*.iml
-*.ipr
-*.iws
-.idea/
-
-# The .vscode folder contains launch configuration and tasks you configure in
-# VS Code which you may wish to be included in version control, so this line
-# is commented out by default.
-#.vscode/
-
-# Flutter/Dart/Pub related
-**/doc/api/
-**/ios/Flutter/.last_build_id
-.dart_tool/
-.flutter-plugins-dependencies
-.pub-cache/
-.pub/
-/build/
-/coverage/
-
-# Symbolication related
-app.*.symbols
-
-# Obfuscation related
-app.*.map.json
-
-# Android Studio will place build artifacts here
-/android/app/debug
-/android/app/profile
-/android/app/release
-
 # Python
 venv/
 .venv/
 __pycache__/
-vault_analytics/vault_data.json
-vault_analytics/vault_config.json
-vault_analytics/staging_vault.json
-vault_analytics/pip_error.log
-vault_analytics/build/
-vault_analytics/dist/
+*.pyc
+*.pyo
+*.pyd
+.Python
 
-# Node.js / Electron / React
+# Node.js / React / Electron
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
-vault_pro/node_modules/
-vault_pro/dist/
-vault_pro/dist-electron/
-vault_pro/.vite/
-vault_pro/.electron/
-vault_pro/vault_data.json
-vault_pro/vault_config.json
+
+# Build outputs
+/build/
+/dist/
+/dist-electron/
+/.vite/
+/.electron/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Application data (user-specific)
+*.db
+*.db-journal
+vault_data.json
+vault_config.json
+staging_vault.json
+
+# Logs
+*.log
+pip_error.log
+
+# Environment
+.env
+.env.local
+.env.*.local
 

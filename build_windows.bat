@@ -1,32 +1,32 @@
 @echo off
-REM Build script for Windows executable
-echo Building Vault Analytics for Windows...
+REM Build script for Vault Pro Desktop
+echo Building Vault Pro for Windows...
 
-cd vault_analytics
+cd vault_pro
 
-REM Check if virtual environment exists, create if not
-if not exist "venv" (
-    echo Creating virtual environment...
-    python -m venv venv
-)
+REM Install Node dependencies
+echo Installing Node.js dependencies...
+call npm install
 
-REM Activate virtual environment
-call venv\Scripts\activate
+REM Install Python dependencies
+echo Installing Python dependencies...
+cd python
+call pip install -r requirements.txt
+cd ..
 
-REM Install dependencies (matches CI and requirements.txt)
-echo Installing dependencies...
-pip install -r requirements.txt pyinstaller
+REM Build React app
+echo Building React app...
+call npm run build
 
-REM Build executable with PyInstaller (single spec: datas, hidden imports)
-echo Building executable...
-pyinstaller VaultAnalytics.spec
+REM Build Electron app
+echo Building Electron app...
+call npm run dist
 
 if %ERRORLEVEL% == 0 (
     echo Build successful!
-    echo Executable location: dist\VaultAnalytics.exe
+    echo Executable location: dist-electron\Vault Pro Setup.exe
 ) else (
-    echo Build failed. Make sure you have Visual Studio Build Tools installed for pythonnet.
-    echo Download from: https://visualstudio.microsoft.com/visual-cpp-build-tools/
+    echo Build failed.
 )
 
 pause
